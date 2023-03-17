@@ -46,7 +46,7 @@ Make sure that Anaconda is installed. If not already installed, you can get the 
 
 In the future, you can run ```git pull``` from within the eCREST directory to make sure you have the latest version of scripts from the repo. 
 
-## Running CREST
+## Running eCREST
 
 ### Basic Steps to Launch
 
@@ -121,8 +121,8 @@ Once the CREST user interface has launched, the user should take the following s
 
 - (1) Click the 'Select Agglomeration Database' button to select a downloaded agglomeration database
 - (2) Click the 'Select Save Folder' to select a folder where the files for each proofread object will be saved
-- (3) Enter 'Cell Structures', separated by commas, that you may wish to correct in each object - for example; axon, dendrite and cell body
-- (4) Enter 'End Point Types', separated by commas, that you may wish to use - these would be reasons why you would stop proofreading a particular branch of an object for example; exit volume, artefact, and natural end 
+- (3) The 'Cell Structures' list, separated by commas, that you may wish to label in each object. The standard set for eCREST is ['axon', 'apical dendrite', 'basal dendrite', 'dendrite', 'multiple']
+- (4) The 'End Point Types' list, separated by commas, is a list of annotations that you may wish to use. The standard set for eCREST is ['exit volume', 'natural ends', 'uncertain', 'synapses'] 
 - (5) Optionally, enter a maximum number of base segments that should be added to the biological object from one agglomerated segment
 - (6) A CREST proofreading session can then be launched with one of three buttons, depending on what is desired:
 
@@ -157,6 +157,10 @@ To avoid this, CREST allows the user to mark all base segments on the other side
 Additionally, the colour to be used corresponds to a specific 'cell structure' specified by the user in the CREST GUI (see section 'Proofreading in CREST - Launching a session'). This has the added benefit of recording which cell structure (e.g. axon, dendrite, cell body) each base segment belongs to, and the running count of each category, including 'unknown' base segments, which are shown in grey, is displayed in the bottom left of the neuroglancer interface.
 
 When proofreading to the end of a branch of a cell, the user may wish to record, with a point, why it has become necessary to stop proofreading. CREST allows points to be marked in any of the categories specified as 'End Point Types' (see section 'Proofreading in CREST - Launching a session').
+
+## Synapses
+
+The post-synaptic target segment (select a large perimeter segment apposed to the cleft) can be annotated with the "*synapses*" "end point" annotation layer. **MAKE SURE that the *base_seg* option is selected from the SEGMENT tab in the annotation details panel.** If the *base_seg* option is not selected, then the base segment IDs will not be linked to the annotation point -- the segment IDs of the post-synaptic target are critical for analysis. 
 
 # Proofreading in CREST - User commands
 
