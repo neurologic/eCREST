@@ -1,5 +1,5 @@
 # eCREST
-Connectome Reconstruction and Exploration Simple Tool, or CREST, is a simple GUI tool that enables users to (1) proofread biological objects and (2) identify individual network pathways, connections and cell types of interest, in the Neuroglancer interface.
+Connectome Reconstruction and Exploration Simple Tool, or CREST, is a simple GUI tool (written and hosted by Alex Shapson-Coe (@ashaponscoe) that enables users to (1) proofread biological objects and (2) identify individual network pathways, connections and cell types of interest, in the Neuroglancer interface.
 
 CREST is written in Python and makes extensive use of the Neuroglancer Python API.
 
@@ -20,11 +20,11 @@ Make sure that Anaconda is installed. If not already installed, you can get the 
 2. Launch **Powershell Prompt** from the main Navigator GUI. 
 		> A *command* window will pop up (the line ending with ```>``` is where you will enter the commands in the following steps). 
 3. In the Powershell Prompt screen, run the command ```conda create --name ell```. To "run a command", type the command (exactly as it is written) after the ```>``` on the last line of the Prompt screen -- then press the **Enter** key on your keyboard (Note that the computer mouse does not help you navigate these text commands... use the arrow keys to edit). 
-		> You can name the environment anything you want... just replace "*ell*" with the name you want (and use your name in place of "ell" for all following steps).  
+	> You can name the environment anything you want... just replace "*ell*" with the name you want (and use your name in place of "ell" for all following steps).  
 4. type "Y" and hit enter if prompted to do so (unless you have a reason to say "N")
-		> Repeat this step after any of the "run command" steps as prompted.
+	> Repeat this step after any of the "run command" steps as prompted.
 5. run the command ```conda activate ell```
-		> the beginning of the Powershell Prompt command line should now start with ```(ell)``` instead of ```(base)```
+	> the beginning of the Powershell Prompt command line should now start with ```(ell)``` instead of ```(base)```
 6. Run the following command lines in order: 
 	- ```conda install -c anaconda git```
 	- ```pip install neuroglancer```
