@@ -38,14 +38,18 @@ Make sure that Anaconda is installed. If not already installed, you can get the 
 	1. In the Powershell Prompt that you have been using, run the command ```cd <path-to-where you want the repository>```.  
 	2. Run the command ```git clone https://github.com/neurologic/eCREST.git```
 
-# Run CREST
+## Keeping things up-to-date
+
+In the future, you can run ```git pull``` from within the eCREST directory to make sure you have the latest version of scripts from the repo. 
+
+# Running CREST
 
 ## Basic Steps to Launch
 
 1. Launch **Anaconda Navigator**
 2. Launch **Powershell Prompt** from the main Navigator GUI. 
 3. run the command ```conda activate ell```
-4. "**Change Directory**" to wherever you cloned the eCREST repository in step 7 of the install.
+4. "**Change Directory**" to the cloned eCREST repository (from step 7 of the install... the path now includes eCREST directory itself).
 5. run the command ```python eCREST_stable.py```
 
 ## Possible Errors and Solutions
