@@ -1,9 +1,9 @@
 # eCREST
 Connectome Reconstruction and Exploration Simple Tool, or CREST, is a simple GUI tool (written and hosted by Alex Shapson-Coe, @ashaponscoe) that enables users to (1) proofread biological objects and (2) identify individual network pathways, connections and cell types of interest, in the Neuroglancer interface.
 
-CREST is written in Python and makes extensive use of the Neuroglancer Python API.
+eCREST is written in Python and makes extensive use of the [Neuroglancer Python API](https://connectomics.readthedocs.io/en/latest/external/neuroglancer.html).
 
-This version was forked from [CREST](https://github.com/ashapsoncoe/CREST) and modified based on the current needs/desires of the electric fish connectome workflow. If it adds useful functionality, it can be pulled back to the original. 
+eCREST was forked from [CREST](https://github.com/ashapsoncoe/CREST) and modified based on the current needs/desires of the electric fish connectome workflow. If it adds useful functionality, it can be pulled back to the original. 
 
 This repo additionally includes custom notebooks and scripts that are created for the electric fish ELL connectome project (for analysis and for converting/communicating between neuroglancer and CREST json states).
 
