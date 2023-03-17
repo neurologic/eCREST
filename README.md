@@ -34,11 +34,13 @@ Make sure that Anaconda is installed. If not already installed, you can get the 
 	- ```conda install -c conda-forge pycairo```
 	- ```conda install -c conda-forge google-cloud-storage```
 	- ```conda install -c conda-forge python-igraph```
-7. Clone this repository to your computer
-	1. In the Powershell Prompt that you have been using, run the command ```cd <path-to-where you want the repository>```.  
-	2. Run the command ```git clone https://github.com/neurologic/eCREST.git```
 
-## Keeping things up-to-date
+## Clone this repository to your computer
+
+1. In the Powershell Prompt that you have been using, run the command ```cd <path-to-where you want the repository>```.  
+2. Run the command ```git clone https://github.com/neurologic/eCREST.git```
+
+### Keeping things up-to-date
 
 In the future, you can run ```git pull``` from within the eCREST directory to make sure you have the latest version of scripts from the repo. 
 
