@@ -8,13 +8,15 @@ eCREST was forked from [CREST](https://github.com/ashapsoncoe/CREST) and modifie
 This repo additionally includes custom notebooks and scripts that are created for the electric fish ELL connectome project (for analysis and for converting/communicating between neuroglancer and CREST json states).
 
 
-# Installing eCREST - PC (windows)
+# PC (windows)
 
-## Anaconda
+## Installing eCREST
+
+### Anaconda
 
 Make sure that Anaconda is installed. If not already installed, you can get the individual distribution [here](https://www.anaconda.com/products/distribution).
 
-## Create a local environment for using eCREST tools
+### Create a local environment for using eCREST tools
 
 1. Launch **Anaconda Navigator**
 2. Launch **Powershell Prompt** from the main Navigator GUI. 
@@ -35,18 +37,18 @@ Make sure that Anaconda is installed. If not already installed, you can get the 
 	- ```conda install -c conda-forge google-cloud-storage```
 	- ```conda install -c conda-forge python-igraph```
 
-## Clone this repository to your computer
+### Clone this repository to your computer
 
 1. In the Powershell Prompt that you have been using, run the command ```cd <path-to-where you want the repository>```.  
 2. Run the command ```git clone https://github.com/neurologic/eCREST.git```
 
-### Keeping things up-to-date
+#### Keeping things up-to-date
 
 In the future, you can run ```git pull``` from within the eCREST directory to make sure you have the latest version of scripts from the repo. 
 
-# Running CREST
+## Running CREST
 
-## Basic Steps to Launch
+### Basic Steps to Launch
 
 1. Launch **Anaconda Navigator**
 2. Launch **Powershell Prompt** from the main Navigator GUI. 
@@ -54,7 +56,7 @@ In the future, you can run ```git pull``` from within the eCREST directory to ma
 4. "**Change Directory**" to the cloned eCREST repository (from step 7 of the install... the path now includes eCREST directory itself).
 5. run the command ```python eCREST_stable.py```
 
-## Possible Errors and Solutions
+### Possible Errors and Solutions
 
 <details><summary>ImportError: cannot import name 'COMMON_SAFE_ASCII_CHARACTERS' from 'charset_normalizer.constant'</summary>
 	For exmple, this error might happen when you try to launch eCREST.py or load a cell from file once it is running.  
@@ -62,7 +64,22 @@ In the future, you can run ```git pull``` from within the eCREST directory to ma
 	```conda install -c anaconda chardet```
 </details>
 
-## Archive
+# Mac
+
+## Install and Run
+
+Most steps are the same. The only thing different is that, once Anaconda has been installed, you do not need to use Anaconda Navigator (though I suppose you can). 
+Instead, use the native "Terminal" application on your mac computer (comes installed on all macs). After installation, Anaconda's python installation should be the default that is called from the Terminal. "Git" is also likely already installed on your mac... so you can probably skip the ```conda install git``` step in the setup.
+
+## Possible Errors and Solutions
+
+### Threading
+
+Can happen on newer Macs (or maybe just certain versions of OS?).  
+***Unsolved***
+
+
+# Archive
 
 <details><summary>Original version instructions (does not seem needed right now)</summary>
 	For Mac, CREST can only currently be run as a python file from the command line. 
