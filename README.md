@@ -1,38 +1,83 @@
-# CREST
+# eCREST
 Connectome Reconstruction and Exploration Simple Tool, or CREST, is a simple GUI tool that enables users to (1) proofread biological objects and (2) identify individual network pathways, connections and cell types of interest, in the Neuroglancer interface.
 
 CREST is written in Python and makes extensive use of the Neuroglancer Python API.
- 
 
-# Installing CREST - Windows
+This version was forked from [CREST](https://github.com/ashapsoncoe/CREST) and modified based on the current needs/desires of the electric fish connectome workflow. If it adds useful functionality, it can be pulled back to the original. 
 
-For Windows, no installation is necessary - CREST is available as a standalone executable file, which can be downloaded from here: 
+This repo additionally includes custom notebooks and scripts that are created for the electric fish ELL connectome project (for analysis and for converting/communicating between neuroglancer and CREST json states).
 
-https://storage.cloud.google.com/crest_program/v0.16.exe
- 
 
-# Installing CREST - Mac
+# Installing CREST - PC (windows)
 
-For Mac, CREST can only currently be run as a python file from the command line. 
+## Anaconda
 
-To get set up quickly, it is recommended that Anaconda 3.9.7 is installed, and the following command lines entered in an Anaconda environment:
+Make sure that Anaconda is installed. If not already installed, you can get the individual distribution [here](https://www.anaconda.com/products/distribution).
+
+## Create a local environment for using eCREST tools
+
+1. Launch **Anaconda Navigator**
+2. Launch **Powershell Prompt** from the main Navigator GUI. 
+	> A *command* window will pop up (the line ending with ```>``` is where you will enter the commands in the following steps). 
+3. In the Powershell Prompt screen, run the command ```conda create --name ell```. To "run a command", type the command (exactly as it is written) after the ```>``` on the last line of the Prompt screen -- then press the **Enter** key on your keyboard (Note that the computer mouse does not help you navigate these text commands... use the arrow keys to edit). 
+	> You can name the environment anything you want... just replace "*ell*" with the name you want (and use your name in place of "ell" for all following steps).  
+4. type "Y" and hit enter if prompted to do so (unless you have a reason to say "N")
+	> Repeat this step after any of the "run command" steps as prompted.
+5. run the command ```conda activate ell```
+	> the beginning of the Powershell Prompt command line should now start with ```(ell)``` instead of ```(base)```
+6. Run the following command lines in order: 
+	- ```conda install -c anaconda git```
+	- ```pip install neuroglancer```
+	- ```conda install scipy```
+	- ```conda install matplotlib```
+	- ```conda install -c conda-forge cairocffi```
+	- ```conda install -c conda-forge pycairo```
+	- ```conda install -c conda-forge google-cloud-storage```
+	- ```conda install -c conda-forge python-igraph```
+7. Clone this repository to your computer
+	1. In the Powershell Prompt that you have been using, run the command ```cd <path-to-where you want the repository>```.  
+	2. Run the command ```git clone https://github.com/neurologic/eCREST.git```
+
+# Run CREST
+
+## Basic Steps to Launch
+
+1. Launch **Anaconda Navigator**
+2. Launch **Powershell Prompt** from the main Navigator GUI. 
+3. run the command ```conda activate ell```
+4. "**Change Directory**" to wherever you cloned the eCREST repository in step 7 of the install.
+5. run the command ```python eCREST_stable.py```
+
+## Possible Errors and Solutions
+
+<details><summary>ImportError: cannot import name 'COMMON_SAFE_ASCII_CHARACTERS' from 'charset_normalizer.constant'</summary>
+	For exmple, this error might happen when you try to launch eCREST.py or load a cell from file once it is running.  
+	**Solution** to try:
+	```conda install -c anaconda chardet```
+</details>
+
+## Archive
 
 <details><summary>Original version instructions (does not seem needed right now)</summary>
-pip install neuroglancer==2.22
+	For Mac, CREST can only currently be run as a python file from the command line. 
 
-pip install scipy==1.7.3
+	To get set up quickly, it is recommended that Anaconda 3.9.7 is installed, and the following command lines entered in an Anaconda environment:
 
-pip install matplotlib==3.5.1 / 3.2.1
+	pip install neuroglancer==2.22
 
-pip install cairocffi==1.3.0
+	pip install scipy==1.7.3
 
-pip install pycairo==1.20.1 ### On some setups, 'brew install cairo' may be required prior to this step
+	pip install matplotlib==3.5.1 / 3.2.1
 
-conda install -c conda-forge google-cloud-storage
+	pip install cairocffi==1.3.0
 
-conda install -c conda-forge python-igraph
+	pip install pycairo==1.20.1 ### On some setups, 'brew install cairo' may be required prior to this step
 
-CREST can then be launched by the following command: python3 ./CREST_v0.15.py
+	conda install -c conda-forge google-cloud-storage
+
+	conda install -c conda-forge python-igraph
+
+	CREST can then be launched by the following command: python3 ./CREST_v0.15.py
 </details> 
 
 # Proofreading in CREST - Downloading required databases
