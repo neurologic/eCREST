@@ -1,5 +1,5 @@
 # eCREST
-Connectome Reconstruction and Exploration Simple Tool, or CREST, is a simple GUI tool (written and hosted by Alex Shapson-Coe (@ashaponscoe) that enables users to (1) proofread biological objects and (2) identify individual network pathways, connections and cell types of interest, in the Neuroglancer interface.
+Connectome Reconstruction and Exploration Simple Tool, or CREST, is a simple GUI tool (written and hosted by Alex Shapson-Coe, @ashaponscoe) that enables users to (1) proofread biological objects and (2) identify individual network pathways, connections and cell types of interest, in the Neuroglancer interface.
 
 CREST is written in Python and makes extensive use of the Neuroglancer Python API.
 
