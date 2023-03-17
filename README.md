@@ -17,6 +17,7 @@ For Mac, CREST can only currently be run as a python file from the command line.
 
 To get set up quickly, it is recommended that Anaconda 3.9.7 is installed, and the following command lines entered in an Anaconda environment:
 
+<details><summary>Original version instructions (does not seem needed right now)</summary>
 pip install neuroglancer==2.22
 
 pip install scipy==1.7.3
@@ -32,7 +33,7 @@ conda install -c conda-forge google-cloud-storage
 conda install -c conda-forge python-igraph
 
 CREST can then be launched by the following command: python3 ./CREST_v0.15.py
- 
+</details> 
 
 # Proofreading in CREST - Downloading required databases
 
