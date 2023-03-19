@@ -16,7 +16,8 @@ from os.path import exists as path_exists
 from os.path import dirname as path_dirname
 from copy import deepcopy
 from datetime import datetime
-from tkinter import Frame, Tk, IntVar, filedialog, simpledialog, Checkbutton, TOP, BOTH, StringVar
+from tkinter import Frame, Tk, IntVar, filedialog, simpledialog, Checkbutton, TOP, BOTH, WORD, INSERT
+from tkinter.scrolledtext import ScrolledText
 from tkinter.ttk import Notebook, Label, Entry, Button
 from PIL import Image, ImageTk
 from scipy.spatial.distance import cdist
@@ -30,23 +31,17 @@ from itertools import combinations
 from collections import Counter
 from random import choice as random_choice
 from sqlite3 import connect as sqlite3_connect
-from sqlite3 import DatabaseError
+from sqlite3 import DatabaseError, OperationalError
+from re import escape
 
 
 
 class UserInterface:
 
-    # def move_app(e):
-	#     self.window.geometry(f'+{e.x_root}+{e.y_root}')
-
-    # def quitter(e):
-    #     self.window.quit()
-    #     #root.destroy()
-
     def __init__(self):
 
         self.set_pre_loaded_settings()
-        self.dimensions = [1400, 700]
+        self.dimensions = [1400, 680]
         self.viewer = neuroglancer.Viewer()
 
         self.added_keybindings = set()
@@ -55,73 +50,80 @@ class UserInterface:
         self.get_settings_dict()
         self.user_selections = {'Cell Reconstruction': {}, 'Network Exploration': {}}
         
-
         current_link = str(self.viewer)
         self.window = Tk()
-        self.window.title(f"CREST: Connectome Reconstruction and Exploration Simple Tool     -     Current Neuroglancer Link: {current_link}")
+        self.window.title(f"CREST: Connectome Reconstruction and Exploration Simple Tool")
         self.window.geometry(f'{self.dimensions[0]}x{self.dimensions[1]}')
         self.tab_control = Notebook(self.window)
 
-
-# self.window = Tk()
-# self.window.title('Codemy.com - Change Titlebar Color')
-# self.window.iconbitmap('c:/gui/codemy.ico')
-# self.window.geometry("500x300")
-
-# remove title bar
-# self.window.overrideredirect(True)
-# title_bar = Frame(self.window, bg="darkgreen", relief="raised", bd=0)
-# title_bar.pack(expand=1, fill=X)
-# title_bar.bind("", self.move_app)
-# title_label = Label(title_bar, text="CREST: Connectome Reconstruction and Exploration Simple Tool", bg="darkgreen", fg="white")
-# title_label.pack(side=LEFT, pady=4)
-# close_label = Label(title_bar, text="  X  ", bg="darkgreen", fg="white", relief="sunken", bd=0)
-# close_label.pack(side=RIGHT, pady=4)
-# close_label.bind("", self.quitter)
-# my_button = Button(self.window, text="CLOSE!", font=("Helvetica, 32"), command=self.window.quit)
-# my_button.pack(pady=100)
-
-
         self.tabs = {}
+        self.textboxes = {}
 
-        for tab_type in ['Network Exploration', 'Cell Reconstruction', 'Figures']: #, 'Messages']:
+        for tab_type, col, row, width, length, rowspan, columnspan in [('Network Exploration', 4,13,66,16,16,66), ('Cell Reconstruction',0,10,178,20,20,178), ('Figures',None,None,None,None,None,None)]:
 
             self.tabs[tab_type] = Frame(self.tab_control)
             self.tab_control.add(self.tabs[tab_type], text=tab_type)
 
-        self.current_messages = {i: '' for i in range(36)}
-
+            if tab_type != 'Figures':
+                self.textboxes[tab_type] = ScrolledText(self.tabs[tab_type], wrap = WORD, width = width, height = length, font = ("Arial", 10))
+                self.textboxes[tab_type].grid(row=row, column=col, columnspan=columnspan, rowspan=rowspan, sticky='w', padx=10)
+                self.textboxes[tab_type].tag_config('error', background="yellow", foreground="red")
+        
         self.link_opened = False
 
-        #for tab_name, row_num in [('Network Exploration', 22), ('Cell Reconstruction', 10)]:
-            #Label(self.tabs[tab_name], text=' '*40).grid(row=row_num, column=0, columnspan=2, sticky='w', padx=10)
-            #Label(self.tabs[tab_name], text=f'CURRENT NEUROGLANCER LINK:').grid(row=row_num, column=0, columnspan=2, sticky='w', padx=10)
-            #clickable_link = Label(self.tabs[tab_name], text=str(self.viewer), cursor="hand2")
-            #clickable_link.grid(row=row_num+1, column=0, columnspan=2, sticky='w', padx=10)
-            #clickable_link.bind("<Button-1>", self.callback)
-            #Label(self.tabs[tab_name], text="----------------------------------------------------------------------------").grid(row=row_num+2, column=0, columnspan=2, sticky='w', padx=10)
-            #Label(self.tabs[tab_name], text=' '*40).grid(row=row_num+3, column=0, columnspan=8, sticky='w', padx=10)
+        for tab_name, row1, col1, row2, col2 in [('Network Exploration', 23, 0, 24, 0), ('Cell Reconstruction', 7, 0, 7, 1)]:
 
+            Label(self.tabs[tab_name], text=f'CURRENT NEUROGLANCER LINK:').grid(row=row1, column=col1, columnspan=2, sticky='w', padx=10)
+            clickable_link = Label(self.tabs[tab_name], text=str(current_link), cursor="hand2")
+            clickable_link.grid(row=row2, column=col2, columnspan=2, sticky='w', padx=10, pady=10)
+            clickable_link.bind("<Button-1>", self.callback)
+            
         self.db_cursors = {}
         self.db_paths = {}
 
         self.layer_type_d = {}
 
-        #self.make_special_string_variables()
         self.make_labels_and_entries()
         self.make_checkbuttons()
         self.make_clickbuttons()
 
-        self.tab_control.pack(expand=2, fill="both")
-        self.window.mainloop()  
+        self.tab_control.pack(expand=2, fill="both") 
     
+
+    def redirector_stdout(self, inputStr):
+
+        current_tab = self.tab_control.tab(self.tab_control.select(), "text")
+
+        if current_tab == 'Figures':
+            text_boxes_to_update = ['Network Exploration', 'Cell Reconstruction']
+        else:
+            text_boxes_to_update = [current_tab]
+        
+        for tb in text_boxes_to_update:
+            self.textboxes[tb].insert(INSERT, inputStr + "\n")
+            self.textboxes[tb].see("end")
+
+
+    def redirector_stderr(self, inputStr):
+
+        current_tab = self.tab_control.tab(self.tab_control.select(), "text")
+
+        if current_tab == 'Figures':
+            text_boxes_to_update = ['Network Exploration', 'Cell Reconstruction']
+        else:
+            text_boxes_to_update = [current_tab]
+        
+        for tb in text_boxes_to_update:
+            self.textboxes[tb].insert(INSERT, inputStr + "\n", 'error')
+            self.textboxes[tb].see("end")
+
 
     def set_pre_loaded_settings(self):
 
         self.pre_loaded_settings = {
 
             'Cell Reconstruction':   {
-                'cred': 'No file selected: Select a CREST database file',
+                'cred': 'No CREST proofreading database file selected',
                 'save_dir': 'No save folder selected',
                 'other_points': 'exit volume, natural, uncorrected split, bad alignment, artefact', 
                 'cell_structures': 'cell body, axon, dendrite',
@@ -130,31 +132,14 @@ class UserInterface:
                 },
           
             'Network Exploration': {
-                'cred': 'No file selected: Select a CREST database file', 
-                #'true_loc_plot': 0,
-                #'max_p_len': '5', 
+                'cred': 'No CREST browsing database file selected', 
                 'min_p_len_displayed_cells': 1,
                 'min_syn_per_c': '1', 
-                #'dir_p_only': 1, 
                 'max_syn_plot': '40',
                 'min_syn_from': '',
                 'min_syn_to': '',
-                #'max_syn_from': '',
-                #'max_syn_to': '',
                 'min_syn_received_total': '', 
-                #'max_syn_received_total': '',
-                #'min_pre': '',
-                #'max_pre': '',
-                'min_syn_given_total': '', 
-                #'max_syn_given_total': '',
-                #'min_post': '',
-                #'max_post': '',
-                # 'show_all_pre': 0, 
-                # 'show_greatest_pre': 0,
-                # 'show_pre_range': 1, 
-                # 'show_all_post': 0,
-                # 'show_greatest_post': 0, 
-                # 'show_post_range': 1       
+                'min_syn_given_total': '',     
                 }   
                 }
 
@@ -164,21 +149,12 @@ class UserInterface:
             'cell_structures': "Cell Structures", 
             'max_base_seg_add': "Maximum Base Segs to add on", 
             'min_syn_per_c': "Min Synapses Per Connection",
-            #'max_p_len': "Max Cell Pair Path Search Length", 
             'min_p_len_displayed_cells': "Min Path Length From Displayed Cells", 
             'max_syn_plot': "Max Synapses to Plot per Partner",
             'min_syn_received_total': 'Min total synapses received',
-            #'max_syn_received_total': 'Max total synapses received',
-            #'min_pre': 'Min pre-synaptic partners',
-            #'max_pre': 'Max pre-synaptic partners',
             'min_syn_from': 'Min synapses from at least one partner',
-            #'max_syn_from': 'Max synapses from any one partner',
             'min_syn_given_total': 'Min total synapses given',
-            #'max_syn_given_total': 'Max total synapses given',
-            #'min_post': 'Min post-synaptic partners', 
-            #'max_post': 'Max post-synaptic partners', 
             'min_syn_to': 'Min synapses to at least one partner',
-            #'max_syn_to': 'Max synapses to any one partner',
             }
 
 
@@ -217,6 +193,7 @@ class UserInterface:
                 s.layers[layer].segment_colors = {int(x): seg_col for x in segments}
 
             s.layers[layer].segments = set([int(x) for x in segments])
+
 
     def clear_all_msg(self):
 
@@ -266,19 +243,6 @@ class UserInterface:
                 self.starting_location = [int(x_size/2), int(y_size/2), int(z_size/2),]
 
 
-    # def make_special_string_variables(self):
-
-    #     for dtype in ['pre', 'post']:
-            
-    #         self.user_selections['Network Exploration'][f'{dtype}_btn_text'] = StringVar()
-
-    #         self.user_selections['Network Exploration'][f'{dtype}_btn_text'].set(
-    #             f"Only {dtype} partners making between 0 and infinite synapses")
-
-    #         for min_or_max in ['min', 'max']:
-    #             self.user_selections['Network Exploration'][f'{dtype}_{min_or_max}_text'] = self.make_linked_string(dtype, min_or_max)
-
-
     def make_labels_and_entries(self):
 
         self.db_path_labels = {}
@@ -302,14 +266,10 @@ class UserInterface:
                 [" ", None, 0, 5, 6],
                 [" ", None, 0, 9, 6],
                 [" ", None, 0, 6, 6],
-                ["           ", None, 0, 7, 6],
-                ["-"*210, None, 0, 8, 9],
+                [" "*210, None, 0, 8, 9],
                 ["MESSAGES:", None, 0, 9, 1],
-                #["----------------------------------------------------------------------------", None, 0, 11, 2],
-                #["                                                                                                                                                                                                                                                       ", None, 0, 11, 6],
                 ["START PROOFREADING", None, 5, 1, 4],
                 ["SAVE CURRENT CELL", None, 6, 1, 4],
-                
                 [" ", None, 5, 12, 6],
                 ["End Point Type:", 'other_points', 0, 5, 4],  
                 ["Cell Structures:", 'cell_structures', 0, 4, 4], 
@@ -335,30 +295,13 @@ class UserInterface:
                 ["                 ", None, 0, 9, 2],
                 ["SEQUENTIAL CELL EXPLORATION OPTIONS:", None, 0, 10, 2],
                 ["Max Synapses to Plot per Partner",'max_syn_plot', 0, 11, 1],
-                #[" ", None, 4, 11, 1],
-                #['Selected Cell Post-Synaptic Connectivity Features:', None, 4, 19, 2],
-                #['Min post-synaptic partners', 'min_post', 4, 20, 1],
-                #['Max post-synaptic partners', 'max_post', 4, 21, 1],
                 ['Min Total Synapses Given','min_syn_given_total', 0, 12, 1],
-                #['Max total synapses given','max_syn_given_total', 4, 23, 1],
                 ['Min Synapses To At Least One Partner','min_syn_to', 0, 13, 1],
-                #['Max synapses to any one partner','max_syn_to', 4, 25, 1],
-                #[" ", None, 0, 14, 1],
-                #[" ", None, 0, 21, 1],
                 [" ", None, 0, 18, 1],
                 ["----------------------------------------------------------------------------", None, 0, 19, 2],
-                #["____________________________________________________________________________", None, 0, 18, 2],
-                #['Pre-synaptic Partner Display Options:', None, 4, 11, 1],
-                #['Post-synaptic Partner Display Options:', None, 4, 16, 1],
-                #["                                              ", None, 4, 10, 2],
-                #['Selected Cell Pre-Synaptic Connectivity Features:', None, 4, 11, 2],
-                #['Min pre-synaptic partners','min_pre', 4, 12, 1],
-                #['Max pre-synaptic partners','max_pre', 4, 13, 1],
+                [" ", None, 0, 22, 1],
                 ['Min Total Synapses Received','min_syn_received_total', 0, 14, 1],
-                #['Max total synapses received','max_syn_received_total', 4, 15, 1],
                 ['Min Synapses From At Least One Partner','min_syn_from', 0, 15, 1],
-                #['Max synapses from any one partner','max_syn_from', 4, 17, 1],
-                
                 ]
             }
 
@@ -378,21 +321,6 @@ class UserInterface:
                 
                 if dkey == None: continue
 
-                # if dkey in ['min_syn_from', 'max_syn_from', 'min_syn_to', 'max_syn_to']:
-
-                #     if dkey.split('_')[-1] == 'from':
-                #         dtype = 'pre'
-
-                #     if dkey.split('_')[-1] == 'to':
-                #         dtype = 'post'
-
-                #     min_or_max = dkey.split('_')[0]
-
-                #     vartext = self.user_selections[tab_type][f'{dtype}_{min_or_max}_text']
-
-                #     self.user_selections[tab_type][dkey] = Entry(self.tabs[tab_type], textvariable=vartext)
-                
-                # else:
                 self.user_selections[tab_type][dkey] = Entry(self.tabs[tab_type])
 
                 self.user_selections[tab_type][dkey].grid(row=row, column=col+1, padx=10, sticky='ew', columnspan=colspan)
@@ -404,15 +332,6 @@ class UserInterface:
 
     def make_checkbuttons(self):
 
-        # self.mutually_exclusive_options = {
-        #     'show_pre_range': ['show_greatest_pre', 'show_all_pre'], 
-        #     'show_greatest_pre': ['show_pre_range', 'show_all_pre'],
-        #     'show_all_pre': ['show_greatest_pre', 'show_pre_range'],
-        #     'show_post_range': ['show_greatest_post', 'show_all_post'], 
-        #     'show_greatest_post': ['show_post_range', 'show_all_post'],
-        #     'show_all_post': ['show_greatest_post', 'show_post_range']
-        #     }
-
         checkbutton_data = {
             'Cell Reconstruction': [
                 #['Pre-load Next Segments', 'pre_load_edges', 5, 8],  
@@ -420,23 +339,8 @@ class UserInterface:
             'Network Exploration': [
                 #['Directed Cell Pair Path Search', 'dir_p_only', 4, 5],
                 #['Use True Locations for Plotting','true_loc_plot', 4, 5],
-                # [self.user_selections['Network Exploration']['pre_btn_text'], 'show_pre_range', 4, 12],
-                # ['Only greatest pre partner','show_greatest_pre', 4, 13],
-                # ['All pre partners', 'show_all_pre', 4, 14],
-                # [self.user_selections['Network Exploration']['post_btn_text'],'show_post_range', 4, 17],
-                # ['Only greatest post partner','show_greatest_post', 4, 18],
-                # ['All post partners', 'show_all_post', 4, 19],
                 ]
             }
-
-        # checkbutton_functions = {
-        #     'show_pre_range': lambda: self.one_sel_only('Network Exploration', 'show_pre_range'),
-        #     'show_greatest_pre': lambda: self.one_sel_only('Network Exploration', 'show_greatest_pre'),
-        #     'show_all_pre': lambda: self.one_sel_only('Network Exploration', 'show_all_pre'),
-        #     'show_post_range': lambda: self.one_sel_only('Network Exploration', 'show_post_range'),
-        #     'show_greatest_post': lambda: self.one_sel_only('Network Exploration', 'show_greatest_post'),
-        #     'show_all_post': lambda: self.one_sel_only('Network Exploration', 'show_all_post')
-        # }
 
 
         for tab_key in checkbutton_data.keys():
@@ -449,25 +353,10 @@ class UserInterface:
             
             for label, d_key, col, row in checkbutton_data[tab_key]:
 
-                # if d_key in checkbutton_functions:
-                #     associated_f = checkbutton_functions[d_key]
-                # else:
-
                 associated_f = None
 
                 self.user_selections[tab_key][d_key] = IntVar(value=self.settings_dict[tab_key][d_key])
 
-                # if d_key in ['show_post_range', 'show_pre_range']:
-                #     self.user_selections[tab_key][f'{d_key}_sel'] = Checkbutton( 
-                #         self.tabs[tab_key], 
-                #         textvariable = label,
-                #         variable=self.user_selections[tab_key][d_key], 
-                #         onvalue=1, 
-                #         offvalue=0,
-                #         command =  associated_f         )
-
-                # else:
-                
                 self.user_selections[tab_key][f'{d_key}_sel'] = Checkbutton( 
                         self.tabs[tab_key], 
                         text = label,
@@ -604,35 +493,6 @@ class UserInterface:
                     row=row, column=col, padx=10, pady=2, sticky = 'ew', columnspan=colspan)
         
 
-    # def make_linked_string(self, dtype, min_or_max):
-
-    #     temp = StringVar()
-
-    #     temp.trace(
-    #         "w", 
-    #         lambda name, 
-    #         index, 
-    #         mode, 
-    #         sv=temp: self.update_btn_text(dtype, min_or_max)
-    #         )
-
-    #     return temp
-
-    '''
-    def one_sel_only(self, mode, to_sel):
-
-        to_unsel_list = self.mutually_exclusive_options[to_sel]
-
-        if self.user_selections[mode][to_sel].get() == 1:
-
-            for to_unsel in to_unsel_list:
-
-                if self.user_selections[mode][to_unsel].get() == 1:
-
-                    self.user_selections[mode][to_unsel].set(0)
-    '''
-
-
     def get_segs_and_layers(self, browsing_db_cursor):  
 
         for dtype in self.layer_type_d.keys():
@@ -643,7 +503,7 @@ class UserInterface:
         self.layer_type_d = {}
 
         for dtype, col, start_row in (('region', 3, 2), ('type', 2, 2), ('pre_struc_type', 4, 3), ('post_struc_type', 5, 3), ('ei_type', 6, 3)):
-   
+
             if dtype == 'ei_type':
                 final_list = ['excitatory', 'inhibitory', 'unknown']
             else:
@@ -658,6 +518,7 @@ class UserInterface:
 
                 final_list = [x[0] for x in browsing_db_cursor.fetchall()]
                 final_list.sort()
+
 
             self.layer_type_d[dtype] = {'buttons': {}, 'values': {}} 
      
@@ -704,30 +565,10 @@ class UserInterface:
 
     def update_mtab(self, new_message, tab):
 
-        
+        self.textboxes[tab].insert(INSERT, new_message + "\n")
+        self.textboxes[tab].see("end")
 
-        if tab == 'Network Exploration':
-            lowest_line = 24
-            highest_line = 14
-            col = 4
-            wsp = 150
-        
-        if tab == 'Cell Reconstruction':
-            lowest_line = 31
-            highest_line = 11
-            col = 0
-            wsp = 200
-        
-        for i in range(highest_line, lowest_line):
-
-            Label(self.tabs[tab], text=self.current_messages[i+1]+' '*wsp).grid(row=i, column=col, columnspan=100, sticky='w', padx=10)
-
-            self.current_messages[i] = self.current_messages[i+1]  
-
-        Label(self.tabs[tab], text=new_message+ ' '*wsp).grid(row=lowest_line, column=col, columnspan=100, sticky='w', padx=10)
-        self.current_messages[lowest_line] = new_message + ' '*wsp
  
-
     def save_current_state(self):
 
         ftypes = (("json files","*.json"), ("all files","*.*"))
@@ -772,7 +613,6 @@ class UserInterface:
                 c = json_load(fp)
 
         except:
-            self.update_mtab('Input list of cell segments not in correct json format, please revise', 'Cell Reconstruction')
             return False
 
         self.cell_list_path = selected_file
@@ -802,25 +642,43 @@ class UserInterface:
     
     def update_selected_db(self, db_path, mode):
 
-        if not 'No file selected' in db_path:
+        if not 'No CREST' in db_path: 
+     
+            try:
+                db_connection = sqlite3_connect(db_path, check_same_thread=False) 
+                db_cursor = db_connection.cursor()
 
-            db_connection = sqlite3_connect(db_path, check_same_thread=False) 
-            db_cursor = db_connection.cursor()
+            except OperationalError:
 
-            if mode == 'Network Exploration':
+                if mode == 'Network Exploration':
+                    db_path = 'No CREST browsing database file selected'
+                    
+                if mode == 'Cell Reconstruction':
+                    db_path = 'No CREST proofreading database file selected'
 
-                try:
-                    self.get_segs_and_layers(db_cursor)
+                self.update_mtab('Selected database could not be opened', mode)
+            
+            else:
 
-                except DatabaseError:
-                    self.update_mtab('Selected database does not have required format', 'Network Exploration')
-                    return
+                if mode == 'Network Exploration':
 
-            self.db_cursors[mode] = db_cursor
+                    try:
+                        self.get_segs_and_layers(db_cursor)
+
+                    except DatabaseError:
+                        self.update_mtab('Selected database does not have required format', 'Network Exploration')
+                        db_path = 'No CREST browsing database file selected'
+
+                    else:
+                        self.db_cursors[mode] = db_cursor
+
+                if mode == 'Cell Reconstruction':
+                    ### Something here to test database file 
+                    self.db_cursors[mode] = db_cursor
+
             self.db_paths[mode] = db_path
             self.settings_dict[mode]['cred'] = db_path
         
-
         if len(db_path) > 50 and mode == 'Network Exploration':
             db_path_to_display = db_path[:25] + ' ... ' + db_path[-25:]
         else:
@@ -906,7 +764,7 @@ class UserInterface:
         query = f"""
         WITH edge_list_prelim AS (
 
-            SELECT 
+            SELECT DISTINCT 
             pre_seg_id, 
             post_seg_id,
             SUM(pair_count) AS pair_count
@@ -917,7 +775,7 @@ class UserInterface:
             {syn_type_query}
             GROUP BY pre_seg_id, post_seg_id
             )
-            SELECT
+            SELECT DISTINCT
                 CAST(pre_seg_id AS STRING), 
                 CAST(post_seg_id AS STRING),
                 pair_count
@@ -951,30 +809,6 @@ class UserInterface:
             return False
         else:
             return True
-
-        
-
-# min_path_depth = 5
-# min_syn_per_conenction = 3
-# import json
-# import igraph
-# with open('c:/work/temp_list.json', 'r') as fp:
-#     syn_edge_list_temp = json.load(fp)
-
-# syn_edge_list_temp = [x for x in syn_edge_list_temp if x[2]>=min_syn_per_conenction]
-
-# browsing_graph_temp = igraph.Graph(directed=True)
-# all_vertices_set_temp = set([str(a) for b in [e[:2] for e in syn_edge_list_temp] for a in b])
-# all_vertices_temp = list(all_vertices_set_temp)
-# browsing_graph_temp.add_vertices(all_vertices_temp)
-# browsing_graph_temp.add_edges([x[:2] for x in syn_edge_list_temp])
-
-
-# nodes_reachable_at_n = browsing_graph_temp.neighborhood_size(all_vertices_temp, order=min_path_depth, mode='OUT', mindist=min_path_depth)
-
-# paths = browsing_graph_temp.get_all_simple_paths('32326425173', cutoff=8, mode='OUT')
-
-
 
 
     def get_addresses(self, required_addresses, mode):
@@ -1055,40 +889,28 @@ class UserInterface:
 
     def networkp_start(self):
 
-        if 'No file selected' in self.db_paths['Network Exploration']:
+        if 'No CREST' in self.db_paths['Network Exploration']:
             self.update_mtab('No Synaptic Database selected', 'Network Exploration')
             return
 
         self.viewer.set_state({})
-        #self.viewer.config_state.raw_state.clear()
         self.clear_all_msg()
 
         # Check required fields are completed:
-        #self.tab_control.select(self.tabs['Messages'])
 
-        required_info = ['min_p_len_displayed_cells', 'min_syn_per_c'] #, 'dir_p_only', 'true_loc_plot', 'max_p_len', ]   
+        required_info = ['min_p_len_displayed_cells', 'min_syn_per_c'] #,'true_loc_plot',]   
 
         optional_fields = [
             'min_syn_from',
             'min_syn_to',
-            #'max_syn_from',
-            #'max_syn_to',
             'min_syn_received_total', 
-            #'max_syn_received_total', 
-            #'min_pre',
-            #'max_pre',
             'min_syn_given_total', 
-            #'max_syn_given_total', 
-            #'min_post',
-            #'max_post',
         ]     
         
         if not self.fields_complete(required_info, 'Network Exploration', opf=optional_fields): return
 
         self.explore_mode = 'network_path'
-        #self.max_path_legnth = int(self.user_selections['Network Exploration']['max_p_len'].get().strip())
         self.min_path_legnth_displayed_cells = int(self.user_selections['Network Exploration']['min_p_len_displayed_cells'].get().strip())
-        #self.dir_status = int(self.user_selections['Network Exploration']['dir_p_only'].get())
         self.min_syn = int(self.user_selections['Network Exploration']['min_syn_per_c'].get().strip())
 
         self.common_browse_start()
@@ -1111,7 +933,6 @@ class UserInterface:
         self.tab_control.select(self.tabs['Figures'])
 
         # Setup graph plotting:
-        #Thread(target=self.continous_plot_updating, args=(), name='plot_updating_worker').start()
 
 
     def add_keybindings_no_duplicates(self, dict):
@@ -1141,8 +962,6 @@ class UserInterface:
             'inc-ind-path': lambda s: self.inc_ind_path(),
             'dec-ind-path': lambda s: self.dec_ind_path(),
             'start-individual-path-members': lambda s: self.start_individual_path_members(),
-            #'add-syn-to-pairs': lambda s: self.add_synapses_to_pairs(),
-            #'add-syn-to-individual-path': lambda s: self.get_synapses_for_a_path(),
         }
 
         self.add_keybindings_no_duplicates(np_keybindings)
@@ -1206,7 +1025,6 @@ class UserInterface:
             s.input_event_bindings.data_view['arrowright'] = 'inc-ind-path'
             s.input_event_bindings.viewer['arrowdown'] = 'start-individual-path-members'
             s.input_event_bindings.data_view['arrowdown'] = 'start-individual-path-members'
-            #s.input_event_bindings.viewer['keys'] = 'add-syn-to-individual-path'
 
             if self.np_mode == 'single_path_breadth':
                 s.input_event_bindings.viewer['arrowup'] = 'return-to-partners'
@@ -1339,6 +1157,7 @@ class UserInterface:
             s.selected_layer.visible = True
             s.layers['Current synapses'].tab = "annotations"
 
+
     def check_selected_segment(self, layer, action, banned_segs = [], acceptable_segs='all'):
 
         if layer not in action.selectedValues: 
@@ -1383,7 +1202,6 @@ class UserInterface:
             s.input_event_bindings.data_view['arrowright'] = 'inc-partner'
             s.input_event_bindings.viewer['arrowdown'] = 'review-subpaths'
             s.input_event_bindings.data_view['arrowdown'] = 'review-subpaths'
-            #s.input_event_bindings.viewer['keys'] = 'add-syn-to-pairs'
 
         self.np_mode = 'paths'
 
@@ -1391,8 +1209,6 @@ class UserInterface:
 
 
     def update_plot(self):
-
-        #while True:
 
         all_vertices = set()
         node_gen_lookup = {}
@@ -1414,8 +1230,6 @@ class UserInterface:
                     node_gen_lookup[seg_id] = gen_num
 
             self.plot_current_subgraph(self.pair_selection, all_vertices, node_gen_lookup)
-
-        #sleep(0.1)
 
 
     def get_graph_layout(self, sg, all_vertices):
@@ -1637,7 +1451,7 @@ class UserInterface:
 
         syn_type_query = self.get_syn_region_type_query_string(types_to_query)
         
-        query = f"""SELECT pre_seg_id, post_seg_id, x, y, z
+        query = f"""SELECT DISTINCT pre_seg_id, post_seg_id, x, y, z
                     FROM individual_synapses_table
                     WHERE pre_seg_id IN ({set_of_neurons_str})
                     {syn_type_query}
@@ -1727,7 +1541,6 @@ class UserInterface:
             s.input_event_bindings.data_view['arrowdown'] = 'review-subpaths'
             s.input_event_bindings.viewer['arrowup'] = None
             s.input_event_bindings.data_view['arrowup'] = None
-            #s.input_event_bindings.viewer['keys'] = 'add-syn-to-pairs'
             
         self.ind_paths = None
 
@@ -1794,7 +1607,6 @@ class UserInterface:
             s.input_event_bindings.data_view['arrowright'] = 'inc-ind-path'
             s.input_event_bindings.viewer['arrowdown'] = 'start-individual-path-members'
             s.input_event_bindings.data_view['arrowdown'] = 'start-individual-path-members'
-            #s.input_event_bindings.viewer['keys'] = 'add-syn-to-individual-path'
 
             if mode == 'subpaths_breadth':
                 s.input_event_bindings.viewer['arrowup'] = 'return-to-partners'
@@ -2096,7 +1908,6 @@ class UserInterface:
                     s.input_event_bindings.data_view['arrowleft'] = 'dec-ind-path'
                     s.input_event_bindings.viewer['arrowright'] = 'inc-ind-path'
                     s.input_event_bindings.data_view['arrowright'] = 'inc-ind-path'
-                    #s.input_event_bindings.viewer['keys'] = 'add-syn-to-individual-path'
 
                 self.update_msg(f'Key Commands: RIGHT: Next individual path, LEFT: Previous individual path, C: Clear all', layer='key_commands')
       
@@ -2107,39 +1918,20 @@ class UserInterface:
 
     def start_ss_session(self, specific_seg_id=None):
 
-        if 'No file selected' in self.db_paths['Network Exploration']:
+        if 'No CREST' in self.db_paths['Network Exploration']:
             self.update_mtab('No Synaptic Database selected', 'Network Exploration')
             return
 
         self.viewer.set_state({})
-        #self.viewer.config_state.raw_state.clear()
         self.clear_all_msg()
 
-        #self.tab_control.select(self.tabs['Messages'])
-
-        required_info = [
-            'max_syn_plot',
-            # 'show_all_pre', 
-            # 'show_greatest_pre',
-            # 'show_pre_range', 
-            # 'show_all_post',
-            # 'show_greatest_post', 
-            # 'show_post_range',
-            ]
+        required_info = ['max_syn_plot',]
 
         optional_fields = [
             'min_syn_from',
             'min_syn_to',
-            #'max_syn_from',
-            #'max_syn_to',
             'min_syn_received_total', 
-            #'max_syn_received_total', 
-            #'min_pre',
-            #'max_pre',
             'min_syn_given_total', 
-            #'max_syn_given_total', 
-            #'min_post',
-            #'max_post',
         ]
 
         if not self.fields_complete(required_info, 'Network Exploration', opf=optional_fields): return
@@ -2150,7 +1942,6 @@ class UserInterface:
         
         self.common_browse_start()
         self.set_syn_thresholds(specific_seg_id=specific_seg_id)
-        #self.set_pre_and_post_display()
 
         self.set_sd_dict()
         self.get_seg_ids(specific_seg_id=specific_seg_id)
@@ -2302,17 +2093,9 @@ class UserInterface:
 
         sel_keys = [
             'min_syn_received_total',
-            #'max_syn_received_total',
-            #'min_pre', 
-            #'max_pre', 
             'min_syn_given_total', 
-            #'max_syn_given_total', 
-            #'min_post',
-            #'max_post',
             'min_syn_from', 
             'min_syn_to',
-            #'max_syn_to',
-            #'max_syn_from',
             ]
 
         for k in sel_keys:
@@ -2333,44 +2116,10 @@ class UserInterface:
         if specific_seg_id == None:
 
             self.update_mtab('Selecting cells with:', 'Network Exploration') 
-
             self.update_mtab(f"- At least {self.syn_thresholds['min_syn_received_total']} synapses received in total", 'Network Exploration')
-            #self.update_mtab(f"- At most {self.syn_thresholds['max_syn_received_total']} synapses received in total", 'Network Exploration')
-
             self.update_mtab(f"- At least {self.syn_thresholds['min_syn_given_total']} synapses made in total", 'Network Exploration')
-            #self.update_mtab(f"- At most {self.syn_thresholds['max_syn_given_total']} synapses made in total", 'Network Exploration')
-
-            #self.update_mtab(f"- At least {self.syn_thresholds['min_pre']} pre-synaptic partners", 'Network Exploration')
-            #self.update_mtab(f"- At most {self.syn_thresholds['max_pre']} pre-synaptic partners", 'Network Exploration')
-
-            #self.update_mtab(f"- At least {self.syn_thresholds['min_post']} post-synaptic partners", 'Network Exploration')
-            #self.update_mtab(f"- At most {self.syn_thresholds['max_post']} post-synaptic partners", 'Network Exploration')
-
             self.update_mtab(f"- At least one pre-synaptic partner with {self.syn_thresholds['min_syn_from']} or more synapses", 'Network Exploration')
-            #self.update_mtab(f"- No pre-synaptic partners with {self.syn_thresholds['max_syn_from']} or more synapses", 'Network Exploration')
-
             self.update_mtab(f"- At least one post-synaptic partner with {self.syn_thresholds['min_syn_to']} or more synapses", 'Network Exploration')
-            #self.update_mtab(f"- No post-synaptic partners with {self.syn_thresholds['max_syn_to']} or more synapses", 'Network Exploration')
-
-    '''
-    def set_pre_and_post_display(self):
-
-        self.display = {}
-
-        for dtype in ('pre', 'post'):
-
-            self.display[dtype] = 'none'
-
-            options = (f'show_all_{dtype}', f'show_greatest_{dtype}', f'show_{dtype}_range')
-
-            for selection in options:
-
-                if int(self.user_selections['Network Exploration'][selection].get()) == 1:
-
-                    chosen_opt = [x for x in selection.split('_') if x not in ('show', dtype)][0]
-
-                    self.display[dtype] = chosen_opt
-    '''
 
 
     def get_seg_ids(self, specific_seg_id=None):
@@ -2396,7 +2145,7 @@ class UserInterface:
                 
                 )
                 
-                SELECT 
+                SELECT DISTINCT 
                     CAST(seg_id AS STRING) AS seg_id, region, type
                 FROM selected_ids 
                 ORDER BY seg_id
@@ -2442,13 +2191,10 @@ class UserInterface:
             if mode == 'pre':
                 opposite = 'post'
                 range_min = self.syn_thresholds['min_syn_from']
-                #range_max = self.syn_thresholds['max_syn_from']
-
 
             if mode == 'post':
                 opposite = 'pre'
                 range_min = self.syn_thresholds['min_syn_to']
-                #range_max = self.syn_thresholds['max_syn_to']
 
             # Get synapse data:
             types_to_query = [x for x in ('pre_struc_type', 'post_struc_type', 'ei_type') if len(self.sd[x])>0]
@@ -2456,7 +2202,7 @@ class UserInterface:
             syn_type_query = self.get_syn_region_type_query_string(types_to_query)
 
             query = f"""
-                    SELECT CAST({mode}_seg_id AS STRING), x, y, z 
+                    SELECT DISTINCT CAST({mode}_seg_id AS STRING), x, y, z 
                     FROM individual_synapses_table
                     WHERE {opposite}_seg_id = {self.main_seg}
                     {syn_type_query}
@@ -2472,24 +2218,7 @@ class UserInterface:
             strength_counts = Counter(partner_counts.values())
 
             # Add point annotations and appropriate partners:
-
-            '''
-            if self.display[mode] == 'none':
-                partners = set()
-
-            if self.display[mode] == 'greatest':
-                partners = set([partner_counts.most_common()[0][0]])
-
-            if self.display[mode] == 'all':
-                partners = set(partners)
-
-            if self.display[mode] == 'range':
-                partners = set([x for x in partner_counts if (partner_counts[x] >= range_min and partner_counts[x] <= range_max)])
-            '''
-
-            #partners = set(partners)
-      
-            partners = set([x for x in partner_counts if (partner_counts[x] >= range_min)]) # and partner_counts[x] <= range_max)])
+            partners = set([x for x in partner_counts if (partner_counts[x] >= range_min)])
             point_annos = []
 
             for partner in partners:
@@ -2556,14 +2285,12 @@ class UserInterface:
             s.layers['review syn'].annotations = []
             s.layers['review syn'].visible = False
 
-            #if use_saved_viewing_prefs == True:
             if self.ss_mode != 'general':
        
                 for dtype in ('pre', 'post'):
                     s.layers[f'{dtype} partners'].visible = deepcopy(self.saved_viewer_prefs[f'{dtype} partners'])
                     s.layers[f'{dtype} synapses'].visible = deepcopy(self.saved_viewer_prefs[f'{dtype} synapses'])
 
-            #s.selectedLayer.layer = 'selected segment'
             s.selected_layer.layer = f'{self.pre_or_post_display} synapses'
             s.selected_layer.visible = True
             s.layers[f'{self.pre_or_post_display} synapses'].tab = "annotations"
@@ -2588,15 +2315,10 @@ class UserInterface:
     
     def start_batch_review(self):
         
-        # if self.ss_mode == 'batch':
-        #     self.start_all_partners_mode(use_saved_viewing_prefs=True)
-        #     return
-        
         if self.ss_mode not in ['general', 'subbatch']:
             return
 
         with self.viewer.txn(overwrite=True) as s:
-            #s.selectedLayer.layer = f'{self.pre_or_post_display} partners'
             s.selected_layer.layer = f'{self.pre_or_post_display} synapses'
             s.selected_layer.visible = True
             s.layers[f'{self.pre_or_post_display} synapses'].tab = "annotations"
@@ -2636,8 +2358,6 @@ class UserInterface:
                     self.saved_viewer_prefs[l] = deepcopy(s.layers[l].visible) 
                     s.layers[l].visible = False
             
-
-
         self.ss_mode = 'batch'
 
         with self.viewer.config_state.txn() as s:
@@ -2724,7 +2444,6 @@ class UserInterface:
             s.layers['review syn'].annotationColor = 'blue'
   
 
-
     def dec_seg(self):
    
         if self.seg_pos == 0: return
@@ -2759,7 +2478,14 @@ class UserInterface:
         completion_string = ','.join(completion_list).replace('_', ' ')
 
         if file_name == None:
-            file_name = f'cell_graph_{main_seg_id}_{completion_string}_{timestamp}.json'
+         
+            agg_to_save = str(self.agglo_seg)
+            agg_to_save = escape(agg_to_save) # Get rid of any single backslashes
+
+            for char in ['//', '/', '\\', ':', '_']:
+                agg_to_save = agg_to_save.replace(char, '-')
+            
+            file_name = f'cell_graph_{main_seg_id}_{completion_string}_{agg_to_save}_{timestamp}.json'
 
         cell_data['metadata']['data_sources']['agglo'] = self.agglo_seg
 
@@ -2792,29 +2518,7 @@ class UserInterface:
         for r in result_dict:
             self.cell_data['base_locations'][r] = self.get_corrected_xyz(result_dict[r], 'seg')
 
-    '''
-    def add_cc_bridging_reseg_edges(self, all_base_segs):
 
-        con_comms = list(nx.connected_components(self.pr_graph))
-
-        if len(con_comms) == 1: return
-
-        all_edges = self.get_edges_between_base_segments(all_base_segs)
-
-        for origin, target in all_edges:
-
-            if self.edge_spans_multi_cc(origin, target, con_comms):
-
-                self.pr_graph.add_edge(origin, target)
-                self.cell_data['added_graph_edges'].append([origin, target, 'unknown'])
-                #self.update_mtab(f'Added an edge between segments {origin} and {target}, unknown distance apart', 'Cell Reconstruction')
-
-                con_comms = list(nx.connected_components(self.pr_graph))
-
-                if len(con_comms) == 1:
-                    return
-    '''
-    
     def add_cc_bridging_edges_pairwise(self):
 
         con_comms = list(self.pr_graph.clusters(mode='weak'))
@@ -2843,20 +2547,16 @@ class UserInterface:
             origin, target, dist = min(candidate_edges, key = lambda x: x[2])
 
             self.pr_graph.add_edges([(origin, target)])
+
+            ### CAN REMOVE THIS BIT LATER
+            if 'added_graph_edges_pre_proofreading' not in self.cell_data:
+                self.cell_data['added_graph_edges_pre_proofreading'] = []
+            ###
+            
             self.cell_data['added_graph_edges_pre_proofreading'].append([origin, target, dist])
             self.update_mtab(f'Added an edge between segments {origin} and {target}, {dist} nm apart', 'Cell Reconstruction')
 
             con_comms = list(self.pr_graph.clusters(mode='weak'))
-
-    '''
-    def edge_spans_multi_cc(self, origin, target, con_comms):
-
-        for cc in con_comms:
-            if ((origin in cc) and (target in cc)):
-                return False
-
-        return True
-    '''
 
 
     def making_starting_cell_data(self, main_base_id):
@@ -2868,6 +2568,7 @@ class UserInterface:
             'graph_nodes': [],
             'base_locations': {},
             'added_graph_edges': [], 
+            'selected_base_segs_to_remove': [],
             'added_graph_edges_pre_proofreading': [],
             'end_points': {},
             'base_seg_merge_points': [],
@@ -2941,8 +2642,6 @@ class UserInterface:
         self.pr_graph = ig_Graph(directed=False)
         self.pr_graph.add_vertices(all_base_segs)
         self.pr_graph.add_edges(chosen_edges)
-
-        #self.add_cc_bridging_reseg_edges(all_base_segs)
         self.add_cc_bridging_edges_pairwise()
         self.attach_noloc_segs()
 
@@ -3027,38 +2726,6 @@ class UserInterface:
 
         return f', linked base segments {sel_curr} and {sel_new}, {round(dist)}nm apart, '
 
-    '''
-    def get_edges_between_base_segments(self, base_ids):
-
-        base_ids = [str(x) for x in base_ids if str(x) != '0']
-
-        results = []
-    
-        if len(base_ids) > 0:
-
-            num_batches = int(len(base_ids)/10000)
-
-            for batch in range(num_batches+1):
-
-                q = ','.join([str(x) for x in base_ids[batch*10000:(batch+1)*10000]])
-                
-                query = f"""
-                            SELECT label_a, label_b
-                            FROM {self.agglo_all_edges}
-                            WHERE label_a IN ({q}) AND label_b IN ({q})
-                        """
-
-                res = self.ensure_results_from_bq(query, self.agglo_all_edges)
-                results.extend(res)
-
-        graph_edges = [[str(x['label_a']), str(x['label_b'])] for x in results] 
-
-        if len(base_ids) > 100 and graph_edges == []:
-            self.update_mtab("Warning, no graph edges returned from over 100 base segments, ensure that agglomeration edges database uses fields 'label_a' and 'label_b'", 'Cell Reconstruction')
-
-        return graph_edges
-    '''
-
 
     def resolving_seg_overlap(self):
 
@@ -3116,7 +2783,6 @@ class UserInterface:
         # Record the relevant agglo ID in the metadata
         main_agglo_id = self.get_agglo_seg_of_base_seg(main_seg_id)
         self.cell_data['metadata']['main_seg']['agglo'][self.agglo_seg] = main_agglo_id
-        #self.large_agglo_segs = set([main_agglo_id])
         self.start_time = time()
 
         self.update_mtab(f'Now starting cell {main_seg_id}, number {self.cell_pos+1} of {len(self.cells_todo)} remaining cells', 'Cell Reconstruction')
@@ -3126,7 +2792,7 @@ class UserInterface:
 
         agglo_seg = str(agglo_seg)
 
-        query = f"""SELECT base_id FROM agglo_base_resolved WHERE agglo_id = {agglo_seg}"""
+        query = f"""SELECT DISTINCT base_id FROM agglo_base_resolved WHERE agglo_id = {agglo_seg}"""
 
         self.db_cursors['Cell Reconstruction'].execute(query)
         base_segs = [str(x[0]) for x in self.db_cursors['Cell Reconstruction'].fetchall()]
@@ -3139,7 +2805,7 @@ class UserInterface:
 
         base_seg = str(base_seg)
 
-        query = f"""SELECT agglo_id FROM agglo_base_resolved WHERE base_id = {base_seg}"""
+        query = f"""SELECT DISTINCT agglo_id FROM agglo_base_resolved WHERE base_id = {base_seg}"""
 
         self.db_cursors['Cell Reconstruction'].execute(query)
         agglo_segs = [str(x[0]) for x in self.db_cursors['Cell Reconstruction'].fetchall()]
@@ -3156,7 +2822,7 @@ class UserInterface:
 
         agglo_seg = str(agglo_seg)
 
-        query = f"""SELECT label_a, label_b FROM agglo_to_edges WHERE agglo_id = {agglo_seg}"""
+        query = f"""SELECT DISTINCT label_a, label_b FROM agglo_to_edges WHERE agglo_id = {agglo_seg}"""
 
         self.db_cursors['Cell Reconstruction'].execute(query)
         edges = [(str(x[0]), str(x[1])) for x in self.db_cursors['Cell Reconstruction'].fetchall()]
@@ -3176,7 +2842,7 @@ class UserInterface:
 
                 q = ','.join([str(x) for x in base_segs[batch*batch_size:(batch+1)*batch_size]])
                 
-                query = f"""SELECT seg_id, x, y, z FROM base_location WHERE seg_id IN ({q})"""
+                query = f"""SELECT DISTINCT seg_id, x, y, z FROM base_location WHERE seg_id IN ({q})"""
 
                 self.db_cursors['Cell Reconstruction'].execute(query)
 
@@ -3231,39 +2897,41 @@ class UserInterface:
                         s.layers[point_type].annotations.append(pa)
 
 
-    def save_point_types_successfully(self):
+    def set_endpoint_annotation_layers(self): 
 
-        for t in self.point_types:
+        self.point_types = list(set(self.point_types + list(self.cell_data['end_points'].keys())))
+        self.point_types = [x for x in self.point_types if not ('base' in x.lower() and 'merge' in x.lower())]
 
-            this_type_points = []
-     
-            for x in self.viewer.state.layers[t].annotations:
-                if t == 'Base Segment Merger' and x.segments == None:
-                    c = [int(y) for y in x.point]
-                    self.update_mtab(f'Error, no segment for point {c}, for point layer {t}, correct and re-save', 'Cell Reconstruction')
-                    return False
+        with self.viewer.txn(overwrite=True) as s:
 
-                else:
-                    co_ords = [float(x) for x in list(x.point)]
-                    co_ords_and_id = [co_ords[x]*self.vx_sizes['em'][x] for x in range(3)]
+            for point_type in self.point_types:
 
-                    if x.segments != None:
-                        if len(x.segments[0]) > 0:
-                            co_ords_and_id.append(str(x.segments[0][0]))
+                s.layers[point_type] = neuroglancer.AnnotationLayer()
+                s.layers[point_type].annotationColor = '#ffffff'
+                s.layers[point_type].tool = "annotatePoint"
+                s.layers[point_type].tab = 'Annotations'
 
-                    this_type_points.append(co_ords_and_id)
+                # If data already exists for this point type:
+                if point_type in self.cell_data['end_points'].keys():
 
-            if t == 'Base Segment Merger':
-                self.cell_data['base_seg_merge_points'] = this_type_points
-            else:
-                self.cell_data['end_points'][t] = this_type_points
+                    for pos, point in enumerate(self.cell_data['end_points'][point_type]):
 
-        return True
+                        point_array = array([int(point[x]/self.vx_sizes['em'][x]) for x in range(3)])
+                        point_id = f'{point_type}_{pos}'
+                        
+                        if len(point)==3: # then there is no segment ID associated with the annotation point
+                        
+                            pa = neuroglancer.PointAnnotation(id=point_id, point = point_array)
+
+                        if len(point)==4: # then include the segment ID with the annotation point
+
+                            segment_id = point[3]
+                            pa = neuroglancer.PointAnnotation(id=point_id, point = point_array, segments = [[segment_id]])
+                        
+                        s.layers[point_type].annotations.append(pa)
 
 
     def next_cell(self):
-        
-        start = time()
 
         if self.cell_pos == len(self.cells_todo)-1:
             self.update_mtab('You have completed the final cell of this batch', 'Cell Reconstruction')
@@ -3273,8 +2941,6 @@ class UserInterface:
             self.cell_pos += 1
             self.load_cell_to_edit()
             self.start_new_cell_seg_pr()
-
-        #print(f'time taken to start cell {self.cell_pos} is {time()-start}')
 
 
     def pr_single_neuron(self):
@@ -3352,7 +3018,7 @@ class UserInterface:
         new_unknown_segs = new_agglo_base_ids - all_current_segs
         self.cell_data['base_segments']['unknown'].extend(list(new_unknown_segs))
         self.update_mtab(f'Added {len(new_unknown_segs)} new base segments from updated agglomeration {self.agglo_seg}', 'Cell Reconstruction')
-
+        
 
     def ensure_all_cells_have_graphs(self, specific_file, specific_seg_id):
   
@@ -3387,8 +3053,6 @@ class UserInterface:
         all_cloud_file_names = [x.name for x in self.proofread_files_bucket.list_blobs() if x.name.split('_')[2] in self.cells_todo]
         all_local_file_names = [x for x in listdir(self.save_dir) if 'cell' in x and x.split('_')[2] in self.cells_todo]
 
-        #self.completion_message_dict = {}
-
         all_cloud_seg_ids = set([x.split('_')[2] for x in all_cloud_file_names])
         all_local_seg_ids = set([x.split('_')[2] for x in all_local_file_names])
         cells_with_files = all_cloud_seg_ids.union(all_local_seg_ids)
@@ -3410,9 +3074,6 @@ class UserInterface:
 
                 if self.most_recent_file_complete(seg_id, ['local']) and specific_file == None:
                     complete_cells.append(seg_id)
-                    #msg = f'Cell {seg_id} has already been completed for the selected cell structures locally'
-                    #self.update_mtab(msg, 'Cell Reconstruction')
-                    #self.completion_message_dict[seg_id] = msg
                     continue
 
                 # If no complete cell locally, start most recent file, whether it originates from cloud or local:
@@ -3441,9 +3102,6 @@ class UserInterface:
                     else:
                         msg = f'Cell {seg_id} not completed for all the selected cell structures in the most recent (cloud) version'
 
-                #self.update_mtab(msg, 'Cell Reconstruction')
-                #self.completion_message_dict[seg_id] = msg
-
                 if file_source == 'cloud':
                     
                     try:
@@ -3463,9 +3121,7 @@ class UserInterface:
                 # If agglo_id has changed from last time, add new base segments - currently disabled:
                 last_agglo_id = self.cell_data['metadata']['data_sources']['agglo']
                 changed_agglo_id = (last_agglo_id != self.agglo_seg)
-
-                changed_agglo_id = False
-
+       
                 if changed_agglo_id:
 
                     self.add_new_base_segs_from_new_agglo(seg_id)
@@ -3482,9 +3138,9 @@ class UserInterface:
             else:
                 self.making_starting_cell_data(seg_id)
 
-                if self.pre_load_edges == 1:
-                    all_base_segs = [a for b in self.cell_data['base_segments'].values() for a in b]
-                    self.get_new_gen_dict_entries(all_base_segs, 0)
+                # if self.pre_load_edges == 1:
+                #     all_base_segs = [a for b in self.cell_data['base_segments'].values() for a in b]
+                #     self.get_new_gen_dict_entries(all_base_segs, 0)
 
                 self.create_pr_graph()
                 self.save_cell_graph()
@@ -3512,7 +3168,9 @@ class UserInterface:
     def seg_pr_batch_start(self, specific_file=None, specific_seg_id=None):
 
         if (specific_file == None and specific_seg_id == None):
-            if not self.choose_cell_list_successfully(): return
+            if not self.choose_cell_list_successfully(): 
+                self.update_mtab('Input list of cell segments not in correct json format, please revise', 'Cell Reconstruction')
+                return
 
         if not path_exists(self.save_dir):
             self.update_mtab('Selected save directory not found, please revise', 'Cell Reconstruction')
@@ -3525,12 +3183,9 @@ class UserInterface:
 
         if not self.fields_complete(required_info, 'Cell Reconstruction', opf=opf): return
 
-        #self.tab_control.select(self.tabs['Messages'])
-
         self.update_mtab('Starting segment proofreading of batch of cells', 'Cell Reconstruction')
 
         self.viewer.set_state({})
-        #self.viewer.config_state.raw_state.clear()
         self.clear_all_msg()
 
         self.add_keybindings_no_duplicates({'change-point': lambda s: self.change_point()})
@@ -3611,9 +3266,9 @@ class UserInterface:
         # Thread(target=self.add_seg_in_background, args=(), name='seg_adding_worker').start()
 
         # Create edge adding worker
-        if self.pre_load_edges == 1:
-            self.pre_load_edges_queue = Queue()
-            Thread(target=self.update_potential_graph_in_background, args=(), name='edge_adding_worker').start()
+        # if self.pre_load_edges == 1:
+        #     self.pre_load_edges_queue = Queue()
+        #     Thread(target=self.update_potential_graph_in_background, args=(), name='edge_adding_worker').start()
 
         # Create graph growth variables:
         self.current_score_threshold = 0.0
@@ -3698,7 +3353,7 @@ class UserInterface:
 
                 q = ','.join([str(x) for x in starting_base_segs[batch*10000:(batch+1)*10000]])
                 
-                query = f"""SELECT label_a, label_b, score FROM {self.agglo_all_edges}
+                query = f"""SELECT DISTINCT label_a, label_b, score FROM {self.agglo_all_edges}
                             WHERE score >= {threshold} AND (label_a IN ({q}) OR label_b IN ({q}))"""
 
                 res = self.ensure_results_from_bq(query, self.agglo_all_edges)
@@ -3819,69 +3474,8 @@ class UserInterface:
 
         self.update_mtab(f'{len(new_base_segs)} new base segments added to {curr_s}', 'Cell Reconstruction')
         self.update_displayed_segs()  
-    '''
-
-    def change_cell_structure(self):
-
-        if self.current_red_seg != None: return
-     
-        if self.cell_structure_pos == len(self.cell_structures)-1:
-            self.cell_structure_pos = 0
-
-        else:
-            self.cell_structure_pos += 1
-
-        self.update_msg(f'Current Cell Structure (C): {self.cell_structures[self.cell_structure_pos]}', layer='Current Cell Structure')
 
 
-    def change_point(self):
-
-        if self.point_pos == len(self.point_types)-1:
-            self.point_pos = 0
-        else:
-            self.point_pos += 1
-
-        selected_layer = self.point_types[self.point_pos]
-
-        with self.viewer.txn(overwrite=True) as s:
-            s.selectedLayer.layer = selected_layer
-            s.selected_layer.visible = True
-            s.layers[selected_layer].tab = 'Annotations'
-
-        self.update_msg(f'Current Point Annotation Type (P): {selected_layer}', layer='current point type')
-
-
-    def remove_downstream_base_segs(self, base_seg):
-
-        segs_to_remove, n_con_com = self.get_downstream_base_segs(base_seg)
-
-        self.assert_segs_in_sync()
-
-        # Remove from lists and segmentation layer:
-        for cs in self.cell_data['base_segments'].keys():
-            self.cell_data['base_segments'][cs] -= set(segs_to_remove)
-
-        self.pr_graph.delete_vertices(segs_to_remove)
-        self.focus_seg_set -= set(segs_to_remove)
-
-        with self.viewer.txn(overwrite=True) as s:
-
-            for bs in segs_to_remove:
-
-                if int(bs) in s.layers['base_segs'].segments:
-                    s.layers['base_segs'].segments.remove(int(bs))
-
-                # if int(bs) in s.layers['focus_segs'].segments:
-                #     s.layers['focus_segs'].segments.remove(int(bs))
-
-        self.assert_segs_in_sync()
-            
-        self.cell_data['removed_base_segs'].update(set(segs_to_remove))
-        self.update_mtab(f'{len(segs_to_remove)} base segments removed from {n_con_com} connected components', 'Cell Reconstruction')
-        self.cell_data['added_graph_edges'] = [x for x in self.cell_data['added_graph_edges'] if (x[0] not in segs_to_remove) and (x[1] not in segs_to_remove)]
-        self.update_seg_counts_msg()
-
-    '''
     def turn_white_seg_grey(self, base_seg):
 
         white_segs = self.get_white_segs()
@@ -3891,194 +3485,7 @@ class UserInterface:
             with self.viewer.txn(overwrite=True) as s:
                 s.layers['focus_segs'].segment_colors[int(base_seg)] = '#708090'
                 s.layers['base_segs'].segment_colors[int(base_seg)] = '#708090'
-    '''
 
-
-    def change_anchor_seg(self, action_state):  
-
-        base_seg = self.check_selected_segment('base_segs', action_state, banned_segs=[self.cell_data['anchor_seg']])
-        if base_seg == 'None': return
-
-        with self.viewer.txn(overwrite=True) as s:
-            s.layers['base_segs'].segment_colors[int(self.cell_data['anchor_seg'])] = '#708090'
-            s.layers['base_segs'].segment_colors[int(base_seg)] = '#1e90ff'
-            
-        self.cell_data['anchor_seg'] = deepcopy(base_seg)
-
-
-    def assert_segs_in_sync(self, return_segs=False):
-
-        displayed_segs = set([str(x) for x in self.viewer.state.layers['base_segs'].segments])
-        graph_segs = set([x['name'] for x in self.pr_graph.vs])
-        listed_segs = set([a for b in [self.cell_data['base_segments'][cs] for cs in self.cell_data['base_segments'].keys()] for a in b])
-
-        assert listed_segs == graph_segs
-
-        if not displayed_segs == graph_segs:
-            self.update_displayed_segs()
-        
-
-        if return_segs:
-            return displayed_segs
-        else:
-            return None
-
-
-    def add_or_remove_seg(self, action_state):  
-
-        if self.current_red_seg == None:
-            rel_layer = 'base_segs'
-        else:
-            rel_layer = 'focus_segs'
-        
-        base_seg = self.check_selected_segment(rel_layer, action_state, banned_segs = [self.cell_data['anchor_seg']])
-
-        if base_seg == 'None': return
-
-        # If in graph growing mode, change seg from white to grey:
-        if self.growing_graph == True:
-            self.turn_white_seg_grey(base_seg)
-            return
-
-        # Otherwise, add or remove to main layer:
-        
-        displayed_segs = self.assert_segs_in_sync(return_segs=True)
-
-        if base_seg in displayed_segs:
-
-            # Removing a segment:
-            # if self.segs_to_add_queue.unfinished_tasks != 0:
-            #     self.update_mtab(f'{self.segs_to_add_queue.unfinished_tasks} segments in queue to add, please wait ...', 'Cell Reconstruction')
-            #     return
-
-            # if base_seg not in [x['name'] for x in self.pr_graph.vs]:
-            #     self.update_mtab(f'Selected base segment has not yet been added to graph, please wait ...', 'Cell Reconstruction')
-            #     return
-
-            self.remove_downstream_base_segs(base_seg)
-
-        
-        else:
-
-            # Adding a segment:
-
-            agglo_seg = self.check_selected_segment('agglo', action_state)
-  
-            if agglo_seg == 'None': return
-
-            # if agglo_seg in self.large_agglo_segs:
-            #     # Display single base segment
-            #     with self.viewer.txn(overwrite=True) as s:
-            #         s.layers['base_segs'].segment_colors[int(base_seg)] = '#708090' 
-            #         s.layers['base_segs'].segments.add(int(base_seg))
-            
-            # else:
-            #     # Display agglo segment:
-            #     with self.viewer.txn(overwrite=True) as s:
-            #         s.layers['agglo'].segment_colors[int(agglo_seg)] = '#ededed' 
-            #         s.layers['agglo'].segments.add(int(agglo_seg))
-            # Add to queue:
-            #self.segs_to_add_queue.put([base_seg, agglo_seg])
-
-            # all_current_segs = set([a for b in self.cell_data['base_segments'].values() for a in b])
-
-            # # In case this base seg was added when selecting another base seg in the same agglo segment:
-            # if base_seg in all_current_segs:
-
-            #     assert base_seg in [x['name'] for x in self.pr_graph.vs]
-            #     return
-
-            # Get the base ids and the new segment graph, and combine with the current graph:
-            # If a very large number of base segments is being added on (likely big merge error), just add the single base segment instead:
-            
-            # base_ids = [base_seg]
-            
-            # if agglo_seg not in self.large_agglo_segs:
-
-            constituent_base_ids = self.get_base_segs_of_agglo_seg(agglo_seg)
-
-            if len(constituent_base_ids) > self.max_num_base_added:
-                base_ids = [base_seg]
-                #self.large_agglo_segs.add(agglo_seg)
-            else:
-                base_ids = constituent_base_ids
-
-            current_segs = self.assert_segs_in_sync(return_segs=True)
-
-            num_base_segs_this_agglo_seg = len(base_ids)
-            base_ids = [x for x in base_ids if x not in current_segs]
-            num_base_segs_not_already_included = len(base_ids)
-
-            if num_base_segs_this_agglo_seg > num_base_segs_not_already_included:
-
-                base_ids = [x for x in base_ids if x not in self.cell_data['removed_base_segs']]
-
-                if not base_seg in base_ids:
-                    base_ids.append(base_seg)
-    
-            self.update_base_locations(base_ids)
-            self.pr_graph.add_vertices(base_ids)
-
-            if len(base_ids) > 1:
-                edges = self.get_edges_from_agglo_seg(agglo_seg)
-                edges = [x for x in edges if (x[0] in base_ids and x[1] in base_ids)]
-                self.pr_graph.add_edges(edges)
-
-            #if len(self.pr_graph.clusters(mode='weak')) > 1:
-            join_msg = self.add_closest_edge_to_graph(base_ids, base_seg) 
-            #else:
-            #    join_msg = ' '
-
-            # Update lists of base segments and displayed segs:
-            self.cell_data['base_segments']['unknown'].update(set(base_ids))
-
-            if self.current_red_seg != None:
-                self.focus_seg_set.update(set(base_ids))
-
-            with self.viewer.txn(overwrite=True) as s:
-
-                for bs in base_ids:
-                    s.layers['base_segs'].segment_colors[int(bs)] = '#708090'
-                    s.layers['base_segs'].segments.add(int(bs))
-
-                    # if self.current_red_seg != None:
-                    #     s.layers['focus_segs'].segment_colors[int(bs)] = '#708090'
-                    #     s.layers['focus_segs'].segments.add(int(bs))
-            
-
-            # Get next generation of links for new IDs:
-            if self.pre_load_edges == 1:
-                for bs in base_ids:
-                    self.pre_load_edges_queue.put(bs)
-
-            self.update_displayed_segs() 
-            self.assert_segs_in_sync()
-
-            self.update_mtab(f'Added {len(base_ids)} base segments from agglomerated segment {agglo_seg}{join_msg}', 'Cell Reconstruction')
-
-            
-
-        #print(f'time taken to add or remove segment cell {self.cell_pos}, is {time()-start}')
-
-
-    def get_downstream_base_segs(self, base_seg):
-
-        edge_backup = [(self.pr_graph.vs[p_ix]['name'], base_seg) for p_ix in self.pr_graph.neighbors(base_seg)]
-
-        self.pr_graph.delete_vertices([base_seg])
-
-        current_cc = list(self.pr_graph.clusters(mode='weak'))
-        current_cc_seg_ids = [[self.pr_graph.vs[i]['name'] for i in c] for c in current_cc]
-        ccs_to_remove = [cc for cc in current_cc_seg_ids if self.cell_data['anchor_seg'] not in cc]
-        segs_to_remove = [str(x) for y in ccs_to_remove for x in y if str(x) != '0']
-        segs_to_remove.append(base_seg)
-
-        self.pr_graph.add_vertices([base_seg])
-        self.pr_graph.add_edges(edge_backup)
-
-        return segs_to_remove, len(current_cc)
-
-    '''
     def switch_to_focus_segs_view(self, downstream_segs, base_seg):
 
         with self.viewer.txn(overwrite=True) as s:
@@ -4147,6 +3554,213 @@ class UserInterface:
     '''
 
 
+    def change_cell_structure(self):
+
+        if self.current_red_seg != None: return
+     
+        if self.cell_structure_pos == len(self.cell_structures)-1:
+            self.cell_structure_pos = 0
+
+        else:
+            self.cell_structure_pos += 1
+
+        self.update_msg(f'Current Cell Structure (C): {self.cell_structures[self.cell_structure_pos]}', layer='Current Cell Structure')
+
+
+    def change_point(self):
+
+        if self.point_pos == len(self.point_types)-1:
+            self.point_pos = 0
+        else:
+            self.point_pos += 1
+
+        selected_layer = self.point_types[self.point_pos]
+
+        with self.viewer.txn(overwrite=True) as s:
+            s.selectedLayer.layer = selected_layer
+            s.selected_layer.visible = True
+            s.layers[selected_layer].tab = 'Annotations'
+
+        self.update_msg(f'Current Point Annotation Type (P): {selected_layer}', layer='current point type')
+
+
+    def remove_downstream_base_segs(self, base_seg):
+
+        segs_to_remove, n_con_com = self.get_downstream_base_segs(base_seg)
+
+        self.assert_segs_in_sync()
+
+        # Remove from lists and segmentation layer:
+        for cs in self.cell_data['base_segments'].keys():
+            self.cell_data['base_segments'][cs] -= set(segs_to_remove)
+
+        self.pr_graph.delete_vertices(segs_to_remove)
+        self.focus_seg_set -= set(segs_to_remove)
+
+        with self.viewer.txn(overwrite=True) as s:
+
+            for bs in segs_to_remove:
+
+                if int(bs) in s.layers['base_segs'].segments:
+                    s.layers['base_segs'].segments.remove(int(bs))
+
+                # if int(bs) in s.layers['focus_segs'].segments:
+                #     s.layers['focus_segs'].segments.remove(int(bs))
+
+        self.assert_segs_in_sync()
+            
+        self.cell_data['removed_base_segs'].update(set(segs_to_remove))
+
+        self.update_mtab(f'{len(segs_to_remove)} base segments removed from {n_con_com} connected components', 'Cell Reconstruction')
+        self.cell_data['added_graph_edges'] = [x for x in self.cell_data['added_graph_edges'] if (x[0] not in segs_to_remove) and (x[1] not in segs_to_remove)]
+        self.update_seg_counts_msg()
+
+        if 'selected_base_segs_to_remove' not in self.cell_data:   ### can eventually remove
+            self.cell_data['selected_base_segs_to_remove'] = []
+
+        self.cell_data['selected_base_segs_to_remove'].append(base_seg)
+
+    
+
+    def change_anchor_seg(self, action_state):  
+
+        base_seg = self.check_selected_segment('base_segs', action_state, banned_segs=[self.cell_data['anchor_seg']])
+        if base_seg == 'None': return
+
+        with self.viewer.txn(overwrite=True) as s:
+            s.layers['base_segs'].segment_colors[int(self.cell_data['anchor_seg'])] = '#708090'
+            s.layers['base_segs'].segment_colors[int(base_seg)] = '#1e90ff'
+            
+        self.cell_data['anchor_seg'] = deepcopy(base_seg)
+
+
+    def assert_segs_in_sync(self, return_segs=False):
+
+        displayed_segs = set([str(x) for x in self.viewer.state.layers['base_segs'].segments])
+        graph_segs = set([x['name'] for x in self.pr_graph.vs])
+        listed_segs = set([a for b in [self.cell_data['base_segments'][cs] for cs in self.cell_data['base_segments'].keys()] for a in b])
+
+        assert listed_segs == graph_segs
+
+        if not displayed_segs == graph_segs:
+            self.update_displayed_segs()
+        
+
+        if return_segs:
+            return displayed_segs
+        else:
+            return None
+
+
+    def add_or_remove_seg(self, action_state):  
+
+        if self.current_red_seg == None:
+            rel_layer = 'base_segs'
+        else:
+            rel_layer = 'focus_segs'
+        
+        base_seg = self.check_selected_segment(rel_layer, action_state, banned_segs = [self.cell_data['anchor_seg']])
+
+        if base_seg == 'None': return
+
+        # If in graph growing mode, change seg from white to grey:
+        if self.growing_graph == True:
+            self.turn_white_seg_grey(base_seg)
+            return
+
+        # Otherwise, add or remove to main layer:
+        
+        displayed_segs = self.assert_segs_in_sync(return_segs=True)
+
+        if base_seg in displayed_segs:
+
+            self.remove_downstream_base_segs(base_seg)
+
+        
+        else:
+
+            # Adding a segment:
+
+            agglo_seg = self.check_selected_segment('agglo', action_state)
+  
+            if agglo_seg == 'None': return
+
+            constituent_base_ids = self.get_base_segs_of_agglo_seg(agglo_seg)
+
+            if len(constituent_base_ids) > self.max_num_base_added:
+                base_ids = [base_seg]
+            else:
+                base_ids = constituent_base_ids
+
+            current_segs = self.assert_segs_in_sync(return_segs=True)
+
+            num_base_segs_this_agglo_seg = len(base_ids)
+            base_ids = [x for x in base_ids if x not in current_segs]
+            num_base_segs_not_already_included = len(base_ids)
+
+            if num_base_segs_this_agglo_seg > num_base_segs_not_already_included:
+
+                base_ids = [x for x in base_ids if x not in self.cell_data['removed_base_segs']]
+
+                if not base_seg in base_ids:
+                    base_ids.append(base_seg)
+    
+            self.update_base_locations(base_ids)
+            self.pr_graph.add_vertices(base_ids)
+
+            if len(base_ids) > 1:
+                edges = self.get_edges_from_agglo_seg(agglo_seg)
+                edges = [x for x in edges if (x[0] in base_ids and x[1] in base_ids)]
+                self.pr_graph.add_edges(edges)
+
+            join_msg = self.add_closest_edge_to_graph(base_ids, base_seg) 
+
+            # Update lists of base segments and displayed segs:
+            self.cell_data['base_segments']['unknown'].update(set(base_ids))
+
+            if self.current_red_seg != None:
+                self.focus_seg_set.update(set(base_ids))
+
+            with self.viewer.txn(overwrite=True) as s:
+
+                for bs in base_ids:
+                    s.layers['base_segs'].segment_colors[int(bs)] = '#708090'
+                    s.layers['base_segs'].segments.add(int(bs))
+
+                    # if self.current_red_seg != None:
+                    #     s.layers['focus_segs'].segment_colors[int(bs)] = '#708090'
+                    #     s.layers['focus_segs'].segments.add(int(bs))
+            
+
+            # Get next generation of links for new IDs:
+            if self.pre_load_edges == 1:
+                for bs in base_ids:
+                    self.pre_load_edges_queue.put(bs)
+
+            self.update_displayed_segs() 
+            self.assert_segs_in_sync()
+
+            self.update_mtab(f'Added {len(base_ids)} base segments from agglomerated segment {agglo_seg}{join_msg}', 'Cell Reconstruction')
+
+
+    def get_downstream_base_segs(self, base_seg):
+
+        edge_backup = [(self.pr_graph.vs[p_ix]['name'], base_seg) for p_ix in self.pr_graph.neighbors(base_seg)]
+
+        self.pr_graph.delete_vertices([base_seg])
+
+        current_cc = list(self.pr_graph.clusters(mode='weak'))
+        current_cc_seg_ids = [[self.pr_graph.vs[i]['name'] for i in c] for c in current_cc]
+        ccs_to_remove = [cc for cc in current_cc_seg_ids if self.cell_data['anchor_seg'] not in cc]
+        segs_to_remove = [str(x) for y in ccs_to_remove for x in y if str(x) != '0']
+        segs_to_remove.append(base_seg)
+
+        self.pr_graph.add_vertices([base_seg])
+        self.pr_graph.add_edges(edge_backup)
+
+        return segs_to_remove, len(current_cc)
+
+
     def get_ds_segs_of_certain_col(self, base_seg, colour):
 
         ds = self.get_downstream_base_segs(base_seg)[0]
@@ -4164,10 +3778,6 @@ class UserInterface:
 
 
     def mark_branch_in_colour(self, action_state):
-
-        # if self.segs_to_add_queue.unfinished_tasks != 0:
-        #     self.update_mtab(f'{self.segs_to_add_queue.unfinished_tasks} segments in queue to add, please wait ...', 'Cell Reconstruction')
-        #     return
 
         if self.growing_graph == True: return
         if self.current_red_seg != None: return
@@ -4228,84 +3838,6 @@ class UserInterface:
                 self.pre_load_edges_queue.task_done()
 
 
-    # def add_seg_in_background(self):
-
-    #     while True:
-
-    #         base_seg, agglo_seg = self.segs_to_add_queue.get()
-
-    #         all_current_segs = set([a for b in self.cell_data['base_segments'].values() for a in b])
-
-    #         # In case this base seg was added when selecting another base seg in the same agglo segment:
-    #         if base_seg in all_current_segs:
-
-    #             assert base_seg in [x['name'] for x in self.pr_graph.vs]
-
-    #             with self.viewer.txn(overwrite=True) as s:
-
-    #                 if int(agglo_seg) in s.layers['agglo'].segments:
-    #                     s.layers['agglo'].segments.remove(int(agglo_seg))
-
-    #             self.segs_to_add_queue.task_done()
-    #             self.update_mtab(f'{self.segs_to_add_queue.unfinished_tasks} segments left to add from queue', 'Cell Reconstruction')
-    #             continue
-
-    #         # Get the base ids and the new segment graph, and combine with the current graph:
-    #         # If a very large number of base segments is being added on (likely big merge error), just add the single base segment instead:
-    #         base_ids = [base_seg]
-            
-    #         if agglo_seg not in self.large_agglo_segs:
-
-    #             constituent_base_ids = self.get_base_segs_of_agglo_seg(agglo_seg)
-
-    #             if len(constituent_base_ids) > self.max_num_base_added:
-    #                 self.large_agglo_segs.add(agglo_seg)
-    #             else:
-    #                 base_ids = constituent_base_ids
-    
-    #         self.update_base_locations(base_ids)
-    #         self.pr_graph.add_vertices(base_ids)
-
-    #         if len(base_ids) > 1:
-    #             edges = self.get_edges_from_agglo_seg(agglo_seg)
-    #             self.pr_graph.add_edges(edges)
-
-    #         if len(self.pr_graph.clusters(mode='weak')) > 1:
-    #             join_msg = self.add_closest_edge_to_graph(base_ids, base_seg) 
-    #         else:
-    #             join_msg = ', '
-
-    #         # Update lists of base segments and displayed segs:
-    #         self.cell_data['base_segments']['unknown'].update(set(base_ids))
-
-    #         if self.current_red_seg != None:
-    #             self.focus_seg_set.update(set(base_ids))
-
-    #         with self.viewer.txn(overwrite=True) as s:
-
-    #             for bs in base_ids:
-    #                 s.layers['base_segs'].segment_colors[int(bs)] = '#708090'
-    #                 s.layers['base_segs'].segments.add(int(bs))
-
-    #                 if self.current_red_seg != None:
-    #                     s.layers['focus_segs'].segment_colors[int(bs)] = '#708090'
-    #                     s.layers['focus_segs'].segments.add(int(bs))
-
-    #         # Get next generation of links for new IDs:
-    #         if self.pre_load_edges == 1:
-    #             for bs in base_ids:
-    #                 self.pre_load_edges_queue.put(bs)
-
-    #         # Remove agglomerated seg from display:
-    #         with self.viewer.txn(overwrite=True) as s:
-    #             if int(agglo_seg) in s.layers['agglo'].segments:
-    #                 s.layers['agglo'].segments.remove(int(agglo_seg))
-
-    #         self.segs_to_add_queue.task_done()
-    #         self.update_displayed_segs() 
-    #         self.update_mtab(f'Added {len(base_ids)} base segments from agglomerated segment {agglo_seg}{join_msg}{self.segs_to_add_queue.unfinished_tasks} agglomerated segments left to process', 'Cell Reconstruction')
-
-
     def update_displayed_segs(self):
 
         displayed_segs = set([str(x) for x in self.viewer.state.layers['base_segs'].segments])
@@ -4313,12 +3845,6 @@ class UserInterface:
         graph_segs = set([x['name'] for x in self.pr_graph.vs])
 
         assert listed_segs == graph_segs
-
-        # Identify segments that failed to be removed from the viewer:
-        # if self.segs_to_add_queue.unfinished_tasks == 0:
-        #     segs_to_remove = displayed_segs - listed_segs
-        # else:
-        #     segs_to_remove = set()
 
         segs_to_remove = displayed_segs - listed_segs
 
@@ -4339,10 +3865,6 @@ class UserInterface:
                     for bs in segs_to_remove:
                         if int(bs) in s.layers[layer].segments:
                             s.layers[layer].segments.remove(int(bs))
-
-        # if self.segs_to_add_queue.unfinished_tasks == 0:
-        #     with self.viewer.txn(overwrite=True) as s:
-        #         s.layers['agglo'].segments = set()
 
         self.update_seg_counts_msg()
 
@@ -4417,11 +3939,6 @@ class UserInterface:
 
 
     def save_cell_seg(self, save_completion=False):
-
-        #self.tab_control.select(self.tabs['Messages'])
-
-        # self.update_mtab(f'{self.segs_to_add_queue.unfinished_tasks} segments in queue to add, waiting to save ...', 'Cell Reconstruction')
-        # self.segs_to_add_queue.join()
 
         if self.pre_load_edges == 1:
             self.pre_load_edges_queue.join()
@@ -4528,8 +4045,6 @@ class UserInterface:
         self.cell_structure_pos = -1
         self.change_cell_structure()
 
-
-
         main_seg_id = self.cells_todo[self.cell_pos]
         loc = self.get_locations_from_base_segs([main_seg_id])[main_seg_id]
         self.change_view(loc, css=0.22398, ps=389.338)
@@ -4569,7 +4084,12 @@ if __name__ == '__main__':
 
     #pyi_splash.close()
 
-    UserInterface()
+    inst = UserInterface()
+
+    sys.stdout.write = inst.redirector_stdout 
+    sys.stderr.write = inst.redirector_stderr
+
+    inst.window.mainloop()  
 
     print('i quit!')
 
