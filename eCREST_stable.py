@@ -3544,7 +3544,7 @@ class UserInterface:
         self.add_keybindings_no_duplicates({'change-point': lambda s: self.change_point()})
 
         with self.viewer.config_state.txn() as s:
-            s.show_layer_panel = False ###
+            s.show_layer_panel = True ###
 
         self.cell_pos = 0
 
