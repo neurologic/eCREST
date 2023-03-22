@@ -3216,7 +3216,18 @@ class UserInterface:
             for point_type in self.point_types:
 
                 s.layers[point_type] = neuroglancer.AnnotationLayer()
-                s.layers[point_type].annotationColor = '#ffffff'
+                
+                if point_type == 'post-synaptic':
+                    s.layers[point_type].annotationColor = '#ff00ff'
+                elif point_type == 'pre-synaptic':
+                    s.layers[point_type].annotationColor = '#00EEEE'
+                elif (point_type == 'natural end') | (point_type == 'exit volume'):
+                    s.layers[point_type].annotationColor = '#FFFF00'
+                elif point_type == 'uncertain':
+                    s.layers[point_type].annotationColor = '#EE0000'
+                else:
+                    s.layers[point_type].annotationColor = '#ffffff'
+
                 s.layers[point_type].tool = "annotatePoint"
                 s.layers[point_type].tab = 'Annotations'
 
@@ -3372,14 +3383,14 @@ class UserInterface:
             file_name = specific_file.split('/')[-1]
             seg_id = file_name.split('_')[2]
             self.cells_todo = [seg_id]
-            self.save_dir = specific_file[:-len(file_name)]
+            # self.save_dir = specific_file[:-len(file_name)] # comment this out so can actually control save directory from gui
 
-        else:
-            if specific_seg_id != None:
+        elif specific_seg_id != None:
                 self.cells_todo = [specific_seg_id]
-            else:
-                with open(self.cell_list_path, 'r') as fp:
-                    self.cells_todo = json_load(fp)
+        
+        else:
+            with open(self.cell_list_path, 'r') as fp: # if no filename or cell id, assume have list of cells loaded into cell_list_path (can be a list of dictionaries to convert from neuroglancer)
+                self.cells_todo = json_load(fp)
 
         # Ensure input data is in correct format:
         assert type(self.cells_todo) in [dict, list]
@@ -3490,7 +3501,7 @@ class UserInterface:
             else:
                 self.making_starting_cell_data(seg_id)
 
-                if self.pre_load_edges == 1:
+                if self.pre_load_edges == 1: # this is coded to currently never be true (pre_load_edges is always set to 0)
                     all_base_segs = [a for b in self.cell_data['base_segments'].values() for a in b]
                     self.get_new_gen_dict_entries(all_base_segs, 0)
 
@@ -3908,7 +3919,7 @@ class UserInterface:
         if base_seg == 'None': return
 
         with self.viewer.txn(overwrite=True) as s:
-            s.layers['base_segs'].segment_colors[int(self.cell_data['anchor_seg'])] = '#708090'
+            s.layers['base_segs'].segment_colors[int(self.cell_data['anchor_seg'])] = '#D2B48C'
             s.layers['base_segs'].segment_colors[int(base_seg)] = '#1e90ff'
             
         self.cell_data['anchor_seg'] = deepcopy(base_seg)
@@ -4046,7 +4057,7 @@ class UserInterface:
             with self.viewer.txn(overwrite=True) as s:
 
                 for bs in base_ids:
-                    s.layers['base_segs'].segment_colors[int(bs)] = '#708090'
+                    s.layers['base_segs'].segment_colors[int(bs)] = '#D2B48C'
                     s.layers['base_segs'].segments.add(int(bs))
 
                     # if self.current_red_seg != None:
@@ -4159,12 +4170,12 @@ class UserInterface:
 
         ds = self.get_downstream_base_segs(base_seg)[0]
 
-        # If any of the downstream segments doesn't have a colour, set it to grey:
+        # If any of the downstream segments doesn't have a colour, set it to tan:
         with self.viewer.txn(overwrite=True) as s:
 
             for bs in ds:
                 if int(bs) not in s.layers['base_segs'].segment_colors.keys():
-                    s.layers['base_segs'].segment_colors[int(bs)] = '#708090'
+                    s.layers['base_segs'].segment_colors[int(bs)] = '#D2B48C'
 
             ds = set([x for x in ds if s.layers['base_segs'].segment_colors[int(x)] == colour])
         
@@ -4196,7 +4207,7 @@ class UserInterface:
         current_colour = col[int(base_seg)]
         downstream_segs = self.get_ds_segs_of_certain_col(base_seg, current_colour)
 
-        if current_colour != '#708090':
+        if current_colour != '#D2B48C':
             cell_part = 'unknown'
         else:
             cell_part = self.cell_structures[self.cell_structure_pos]
@@ -4341,7 +4352,7 @@ class UserInterface:
                 for layer, missing_list in [['base_segs', missing_segs], ['focus_segs', missing_focus_segs]]:
 
                     for bs in missing_list:
-                        s.layers[layer].segment_colors[int(bs)] = '#708090'
+                        s.layers[layer].segment_colors[int(bs)] = '#D2B48C'
                         s.layers[layer].segments.add(int(bs)) 
 
                     for bs in segs_to_remove:
@@ -4454,28 +4465,37 @@ class UserInterface:
 
     def set_seg_colours(self):
 
-        self.chosen_seg_colours = {'unknown': '#708090'}
+        self.chosen_seg_colours = {'unknown': '#D2B48C'} # tan
 
-        acceptable_colours = set(['#FFFF00', '#800080', '#008000', '#FF00FF', '#00FF00', '#FF69B4', '#FF8C00'])
-        used_colours = set()
+        # acceptable_colours = set(['#FFFF00', '#800080', '#008000', '#FF00FF', '#00FF00', '#FF69B4', '#FF8C00'])
+        # used_colours = set()
 
         for x in self.cell_structures:
 
-            available_colours = acceptable_colours - used_colours
+            # available_colours = acceptable_colours - used_colours
 
-            if len(available_colours) == 0:
-                available_colours = acceptable_colours
-                
-            if 'axon' in x:
-                chosen_col = '#008000'
+            # if len(available_colours) == 0:
+            #     available_colours = acceptable_colours
+            
+            if x=='multiple':
+                chosen_col = '#FFFFFF' # white
 
-            if 'dendrite' in x:
-                chosen_col = '#FFFF00'
+            if x=='axon':
+                chosen_col = '#008000' # green
+
+            if x=='dendrite':
+                chosen_col = '#FFFF00' # yellow
+
+            if x=='basal dendrite': # orange-red
+                chosen_col = '#CD4B00'
+
+            if x=='apical dendrite': # orange
+                chosen_col = '#FF8000'
     
-            if 'axon' not in x and 'dendrite' not in x:
-                chosen_col = random_choice(list(available_colours))
+            if x not in self.cell_data['base_segments'].keys():
+                chosen_col = '#708090' # if not one of the explicitly chosen structures, make it slate gray
 
-            used_colours.add(chosen_col)
+            # used_colours.add(chosen_col)
             self.chosen_seg_colours[x] = chosen_col
 
             

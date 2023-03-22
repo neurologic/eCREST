@@ -284,3 +284,66 @@ Python scripts used to make proofreading and network path browsing databases are
 The current CREST python script is available in this respository
 
 The CREST standalone executable was created using pyinstaller from the CREST python script, using the spec file included in this repository
+
+## Viewer state options from [viewer_config_state.py](python/neuroglancer/viewer_config_state.py)
+
+```
+class ConfigState(JsonObjectWrapper):
+    __slots__ = ()
+    credentials = wrapped_property('credentials', typed_string_map(dict))
+    actions = wrapped_property('actions', typed_set(text_type))
+    input_event_bindings = inputEventBindings = wrapped_property('inputEventBindings',
+                                                                 InputEventBindings)
+    status_messages = statusMessages = wrapped_property('statusMessages',
+                                                        typed_string_map(text_type))
+    source_generations = sourceGenerations = wrapped_property('sourceGenerations',
+                                                              typed_string_map(int))
+    screenshot = wrapped_property('screenshot', optional(text_type))
+    show_ui_controls = showUIControls = wrapped_property('showUIControls', optional(bool, True))
+    show_location = showLocation = wrapped_property('showLocation', optional(bool, True))
+    show_layer_panel = showLayerPanel = wrapped_property('showLayerPanel', optional(bool, True))
+    show_help_button = showHelpButton = wrapped_property('showHelpButton', optional(bool, True))
+    show_settings_button = showSettingsButton = wrapped_property('showSettingsButton', optional(bool, True))
+    show_layer_side_panel_button = showLayerSidePanelButton = wrapped_property('showLayerSidePanelButton', optional(bool, True))
+    show_layer_list_panel_button = showLayerListPanelButton = wrapped_property('showLayerListPanelButton', optional(bool, True))
+    show_selection_panel_button = showSelectionPanelButton = wrapped_property('showSelectionPanelButton', optional(bool, True))
+    show_panel_borders = showPanelBorders = wrapped_property('showPanelBorders',
+                                                             optional(bool, True))
+    scale_bar_options = scaleBarOptions = wrapped_property('scaleBarOptions', ScaleBarOptions)
+    show_layer_hover_values = showLayerHoverValues = wrapped_property('showLayerHoverValues',
+                                                                      optional(bool, True))
+    viewer_size = viewerSize = wrapped_property('viewerSize', optional(array_wrapper(np.int64, 2)))
+    prefetch = wrapped_property('prefetch', typed_list(PrefetchState))
+```
+
+## Adding key bindings
+
+From [this *stack overflow*](https://stackoverflow.com/questions/60713268/python-neuroglancer-getting-input)
+
+### Example
+
+This example is available on [GitHub](https://github.com/google/neuroglancer/blob/6d808b1d9bbc3cc6f8d7e6a819efb444a9fe1e0f/python/examples/example_action.py)
+
+```
+def my_action(s):
+    print('Got my-action')
+    print('  Mouse position: %s' % (s.mouse_voxel_coordinates,))
+    print('  Layer selected values: %s' % (s.selected_values,))
+viewer.actions.add('my-action', my_action)
+with viewer.config_state.txn() as s:
+    s.input_event_bindings.viewer['keyt'] = 'my-action'
+    s.status_messages['hello'] = 'Welcome to this example'
+```
+
+### Explanation
+
+This example adds a key binding to the viewer and adds a status message. When you press the t key, the `my_action` function will run. `my_action` takes the current state of the action and grabs the mouse coordinates and selected values in the layer.
+
+The `.txn()` method performs a state-modification transaction on the ConfigState object. And by ***state-modification***, I mean it *changes the config*. There are several **default actions in the ConfigState object** (defined in part [here](https://github.com/google/neuroglancer/blob/566514a11b2c8477f3c49155531a9664e1d1d37a/src/neuroglancer/ui/default_input_event_bindings.ts)), and you are modifying that config by adding your own action.
+
+The mouse_coordinates and selected_values objects are defined in Python [here](https://github.com/google/neuroglancer/blob/d71cc9014b75835d84479e242b00266437a8bd07/python/neuroglancer/viewer_config_state.py#L73-L74), and link to the typescript implementation [here](https://github.com/google/neuroglancer/blob/d71cc9014b75835d84479e242b00266437a8bd07/src/neuroglancer/python_integration/remote_actions.ts#L62-L73). The example also sets a status message on the config state, and that is implemented [here](https://github.com/google/neuroglancer/blob/fed15a96fb2e0b91670cd10fa28923f2a0f33a8a/src/neuroglancer/python_integration/remote_status_messages.ts).
+
+It might be useful to first point to the source code for the various functions involved:
+- [viewer.config_state](https://github.com/google/neuroglancer/blob/3db0fa6b46d72aeac0ea71412d8ab62ead328efb/python/neuroglancer/viewer_base.py#L67)
+- viewer.config_state is a "trackable" version of [neuroglancer.viewer_config_state.ConfigState](https://github.com/google/neuroglancer/blob/d71cc9014b75835d84479e242b00266437a8bd07/python/neuroglancer/viewer_config_state.py#L155-L175)
+- [viewer.config_state.txn()](https://github.com/google/neuroglancer/blob/3db0fa6b46d72aeac0ea71412d8ab62ead328efb/python/neuroglancer/trackable_state.py#L107-L121)
