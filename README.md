@@ -51,10 +51,12 @@ In the future, you can run ```git pull``` from within the eCREST directory to ma
 ### Basic Steps to Launch
 
 1. Launch **Anaconda Navigator**
-2. Launch **Powershell Prompt** from the main Navigator GUI. 
-3. run the command ```conda activate ell```
+2. Activate the **ell** environment from the Navigator main window by selecting it from the dropdown menu of environments.  
+3. Launch **Powershell Prompt** from the main Navigator GUI. 
 4. "**Change Directory**" to the cloned eCREST repository (from step 7 of the install... the path now includes eCREST directory itself).
 5. run the command ```python eCREST_stable.py```
+
+> Note that if your data files are on a different drive than your main computer drive (where Anaconda is installed and run), then you will need to do steps 2 and 3 in opposite order (with a "cd" command in between) and activate the environment from the Prompt with the command ```conda activate ell```.
 
 ### Possible Errors and Solutions
 
