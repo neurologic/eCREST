@@ -3512,8 +3512,8 @@ class UserInterface:
             self.cells_todo_d[seg_id] = self.cell_data['base_segments']
 
         # Save new settings file for quick completion lookup next time:
-        with open(f'{self.script_directory}/CREST_settings.json', 'w') as fp:
-            json_dump(self.settings_dict, fp)
+        # with open(f'{self.script_directory}/CREST_settings.json', 'w') as fp:
+        #     json_dump(self.settings_dict, fp)
 
         # Make sure cells todo is a list:
         self.cells_todo = [x for x in self.cells_todo if x not in complete_cells]
