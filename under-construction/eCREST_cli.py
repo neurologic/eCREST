@@ -22,7 +22,7 @@ def import_settings(dict_json):
         settings_dict=myfile.read()
         settings_dict = json.loads(settings_dict)
     return settings_dict
-
+            
 class ecrest:
     
     def __init__(self,settings_dict, segment_id = None, segment_list = None, filepath = None, launch_viewer=False):
@@ -534,7 +534,7 @@ class ecrest:
         assert len(self.pr_graph.clusters(mode='weak')) == 1
         '''
         
-        n_clusters = len(self.pr_graph.clusters(mode='weak'))
+        n_clusters = len(self.pr_graph.connected_components(mode='weak'))
         
         print(f'{n_clusters} clusters in graph (note should/would be only 1 if loaded base ID from agglomo fresh)')
         
@@ -668,7 +668,7 @@ class ecrest:
         con_comms = "connected components" abbreviation
         '''
 
-        con_comms = list(self.pr_graph.clusters(mode='weak'))
+        con_comms = list(self.pr_graph.connected_components(mode='weak'))
         print(f'{len(con_comms)} clusters of connected components. Connecting these clusters with nearest base segments.')
         while len(con_comms) > 1:
 
@@ -698,7 +698,7 @@ class ecrest:
             self.cell_data['added_graph_edges_pre_proofreading'].append([origin, target, dist])
 #             self.update_mtab(f'Added an edge between segments {origin} and {target}, {dist} nm apart', 'Cell Reconstruction')
 
-            con_comms = list(self.pr_graph.clusters(mode='weak'))
+            con_comms = list(self.pr_graph.connected_components(mode='weak'))
 
     def get_closest_dist_between_ccs(self, cc1_node_list, cc2_node_list):
 
@@ -720,7 +720,7 @@ class ecrest:
         This is a case that is asserted in oringinal CREST.py in '''
         
         # For isolated segments without locations, attach to largest connected component:
-        remaining_cc = list(self.pr_graph.clusters(mode='weak'))
+        remaining_cc = list(self.pr_graph.connected_components(mode='weak'))
 
         if len(remaining_cc) == 1: return
 
@@ -920,7 +920,7 @@ class ecrest:
 
         self.pr_graph.delete_vertices([base_seg])
 
-        current_cc = list(self.pr_graph.clusters(mode='weak'))
+        current_cc = list(self.pr_graph.connected_components(mode='weak'))
         current_cc_seg_ids = [[self.pr_graph.vs[i]['name'] for i in c] for c in current_cc]
         ccs_to_remove = [cc for cc in current_cc_seg_ids if self.cell_data['anchor_seg'] not in cc]
         segs_to_remove = [str(x) for y in ccs_to_remove for x in y if str(x) != '0']
@@ -933,7 +933,7 @@ class ecrest:
     
     def add_closest_edge_to_graph(self, new_segs, seg_to_link):
 
-        assert len(self.pr_graph.clusters(mode='weak')) == 2
+        assert len(self.pr_graph.connected_components(mode='weak')) == 2
 
         # Some segments do not have locations recorded:
         current_cell_node_list = [x['name'] for x in self.pr_graph.vs if x['name'] not in new_segs]
@@ -950,7 +950,7 @@ class ecrest:
         self.pr_graph.add_edges([(sel_curr, sel_new)])
         self.cell_data['added_graph_edges'].append([sel_curr, sel_new, dist])
 
-        assert len(self.pr_graph.clusters(mode='weak')) == 1     
+        assert len(self.pr_graph.connected_components(mode='weak')) == 1     
 
         return f', linked base segments {sel_curr} and {sel_new}, {round(dist)}nm apart, '
 
@@ -1133,3 +1133,4 @@ class ecrest:
             print('cell type not defined for this cell yet -- use cell_type.define(ctype,method)')
 
         return ctype
+    
