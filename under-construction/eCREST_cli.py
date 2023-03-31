@@ -176,6 +176,8 @@ class ecrest:
                     'base': self.base_seg, 
                     'agglo': self.agglo_seg,
                     },
+                'completion' : [],
+                'timing' : [],
                 'cell-type' : {'manual': [], 'auto': []}
                 },
             'base_segments' : {dtype: set() for dtype in self.cell_structures}
