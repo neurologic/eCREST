@@ -1,0 +1,20 @@
+{
+    "save_dir": "/Users/kperks/Documents/eCREST-local-files/Complete/pre__mg_axon_segments/to-crest",
+    "max_num_base_added": 1000,
+    "cell_structures": [
+        "unknown",
+        "axon",
+        "basal dendrite",
+        "apical dendrite",
+        "dendrite",
+        "multiple"
+    ],
+    "annotation_points": [
+        "exit volume",
+        "natural end",
+        "uncertain",
+        "pre-synaptic",
+        "post-synaptic"
+    ],
+    "db_path": "/Users/kperks/Documents/eCREST-local-files/Mariela_bigquery_exports_agglo_v230111c_16_crest_proofreading_database.db"
+}
