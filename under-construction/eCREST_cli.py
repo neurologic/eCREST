@@ -17,12 +17,6 @@ from webbrowser import open as wb_open
 from webbrowser import open_new as wb_open_new
 
 
-def import_settings(dict_json):
-    with open(dict_json, 'r') as myfile: # 'p' is the dirpath and 'f' is the filename from the created 'd' dictionary
-        settings_dict=myfile.read()
-        settings_dict = json.loads(settings_dict)
-    return settings_dict
-            
 class ecrest:
     
     def __init__(self,settings_dict, segment_id = None, segment_list = None, filepath = None, launch_viewer=False):
@@ -55,7 +49,7 @@ class ecrest:
         self.cell_pos = 0
         self.start_time = time()
         self.link_opened = False
-        
+
         self.get_vx_sizes()
         self.added_keybindings = set()
         
@@ -128,7 +122,7 @@ class ecrest:
                 s.status_messages['current_seg_count'] = f'Current Base Segment Counts: {second_part}'
 
             self.open_ng_link()
-            self.assert_segs_in_sync()
+            # self.assert_segs_in_sync()
 
     def open_ng_link(self):
 
@@ -176,8 +170,8 @@ class ecrest:
                     'base': self.base_seg, 
                     'agglo': self.agglo_seg,
                     },
-                'completion' : [],
                 'timing' : [],
+                'completion' : [],
                 'cell-type' : {'manual': [], 'auto': []}
                 },
             'base_segments' : {dtype: set() for dtype in self.cell_structures}
@@ -536,7 +530,7 @@ class ecrest:
         assert len(self.pr_graph.clusters(mode='weak')) == 1
         '''
         
-        n_clusters = len(self.pr_graph.connected_components(mode='weak'))
+        n_clusters = len(self.pr_graph.clusters(mode='weak'))
         
         print(f'{n_clusters} clusters in graph (note should/would be only 1 if loaded base ID from agglomo fresh)')
         
@@ -562,6 +556,9 @@ class ecrest:
             cell_data['base_segments'][dtype] = list(cell_data['base_segments'][dtype])
         
         cell_data['removed_base_segs'] = list(cell_data['removed_base_segs'])
+        
+        cell_data['graph_nodes'] = [x['name'] for x in self.pr_graph.vs]
+        cell_data['graph_edges'] = [(self.pr_graph.vs[x.source]['name'], self.pr_graph.vs[x.target]['name']) for x in self.pr_graph.es]
 
         completion_list = list(set(cell_data['metadata']['completion']))
         completion_list.sort()
@@ -670,7 +667,7 @@ class ecrest:
         con_comms = "connected components" abbreviation
         '''
 
-        con_comms = list(self.pr_graph.connected_components(mode='weak'))
+        con_comms = list(self.pr_graph.clusters(mode='weak'))
         print(f'{len(con_comms)} clusters of connected components. Connecting these clusters with nearest base segments.')
         while len(con_comms) > 1:
 
@@ -700,7 +697,7 @@ class ecrest:
             self.cell_data['added_graph_edges_pre_proofreading'].append([origin, target, dist])
 #             self.update_mtab(f'Added an edge between segments {origin} and {target}, {dist} nm apart', 'Cell Reconstruction')
 
-            con_comms = list(self.pr_graph.connected_components(mode='weak'))
+            con_comms = list(self.pr_graph.clusters(mode='weak'))
 
     def get_closest_dist_between_ccs(self, cc1_node_list, cc2_node_list):
 
@@ -722,7 +719,7 @@ class ecrest:
         This is a case that is asserted in oringinal CREST.py in '''
         
         # For isolated segments without locations, attach to largest connected component:
-        remaining_cc = list(self.pr_graph.connected_components(mode='weak'))
+        remaining_cc = list(self.pr_graph.clusters(mode='weak'))
 
         if len(remaining_cc) == 1: return
 
@@ -756,22 +753,21 @@ class ecrest:
 
     def assert_segs_in_sync(self, return_segs=False):
         
+        displayed_segs = set([str(x) for x in self.viewer.state.layers['base_segs'].segments])
         graph_segs = set([x['name'] for x in self.pr_graph.vs])
         listed_segs = set([a for b in [self.cell_data['base_segments'][cs] for cs in self.cell_data['base_segments'].keys()] for a in b])
 
         assert listed_segs == graph_segs
 
-        if self.launch_viewer==True:
-            displayed_segs = set([str(x) for x in self.viewer.state.layers['base_segs'].segments]) # not connected to neuroglancer, so not relevant
-
-            if not displayed_segs == graph_segs:
-                self.update_displayed_segs()
+        if not displayed_segs == graph_segs:
+            self.update_displayed_segs()
         
+
         if return_segs:
-#             return displayed_segs
-            return graph_segs
+            return displayed_segs
         else:
             return None
+
         
     def get_ds_segs_of_certain_col(self, base_seg, colour):
 
@@ -922,7 +918,7 @@ class ecrest:
 
         self.pr_graph.delete_vertices([base_seg])
 
-        current_cc = list(self.pr_graph.connected_components(mode='weak'))
+        current_cc = list(self.pr_graph.clusters(mode='weak'))
         current_cc_seg_ids = [[self.pr_graph.vs[i]['name'] for i in c] for c in current_cc]
         ccs_to_remove = [cc for cc in current_cc_seg_ids if self.cell_data['anchor_seg'] not in cc]
         segs_to_remove = [str(x) for y in ccs_to_remove for x in y if str(x) != '0']
@@ -935,7 +931,7 @@ class ecrest:
     
     def add_closest_edge_to_graph(self, new_segs, seg_to_link):
 
-        assert len(self.pr_graph.connected_components(mode='weak')) == 2
+        assert len(self.pr_graph.clusters(mode='weak')) == 2
 
         # Some segments do not have locations recorded:
         current_cell_node_list = [x['name'] for x in self.pr_graph.vs if x['name'] not in new_segs]
@@ -952,7 +948,7 @@ class ecrest:
         self.pr_graph.add_edges([(sel_curr, sel_new)])
         self.cell_data['added_graph_edges'].append([sel_curr, sel_new, dist])
 
-        assert len(self.pr_graph.connected_components(mode='weak')) == 1     
+        assert len(self.pr_graph.clusters(mode='weak')) == 1     
 
         return f', linked base segments {sel_curr} and {sel_new}, {round(dist)}nm apart, '
 
@@ -1136,3 +1132,9 @@ class ecrest:
 
         return ctype
     
+def import_settings(dict_json):
+    with open(dict_json, 'r') as myfile: # 'p' is the dirpath and 'f' is the filename from the created 'd' dictionary
+        settings_dict=myfile.read()
+        settings_dict = json.loads(settings_dict)
+    return settings_dict
+            
