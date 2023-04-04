@@ -874,7 +874,7 @@ class UserInterface:
                 self.settings_dict[mode][dkey] = curr_val
 
         with open(f'{self.script_directory}/CREST_settings.json', 'w') as fp:
-            json_dump(self.settings_dict, fp)
+            json_dump(self.settings_dict, fp,indent=4)
 
         return True
 
@@ -1083,7 +1083,8 @@ class UserInterface:
             #'max_post',
         ]     
         
-        if not self.fields_complete(required_info, 'Network Exploration', opf=optional_fields): return
+        if not self.fields_complete(required_info, 'Network Exploration', opf=optional_fields): 
+            return
 
         self.explore_mode = 'network_path'
         #self.max_path_legnth = int(self.user_selections['Network Exploration']['max_p_len'].get().strip())
@@ -2142,7 +2143,8 @@ class UserInterface:
             #'max_post',
         ]
 
-        if not self.fields_complete(required_info, 'Network Exploration', opf=optional_fields): return
+        if not self.fields_complete(required_info, 'Network Exploration', opf=optional_fields): 
+            return
 
         self.explore_mode = 'sequential_segment'
 
@@ -3355,7 +3357,7 @@ class UserInterface:
 
         completed_structures_this_file = f.split('_')[3].split(',')
 
-        self.settings_dict['file_completion'][f] = completed_structures_this_file
+        # self.settings_dict['file_completion'][f] = completed_structures_this_file
 
         if set(self.selected_types).issubset(set(completed_structures_this_file)):
             return True
@@ -3542,7 +3544,8 @@ class UserInterface:
 
         opf = []
 
-        if not self.fields_complete(required_info, 'Cell Reconstruction', opf=opf): return
+        if not self.fields_complete(required_info, 'Cell Reconstruction', opf=opf): 
+            return
 
         #self.tab_control.select(self.tabs['Messages'])
 
