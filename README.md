@@ -36,6 +36,7 @@ Make sure that Anaconda is installed. If not already installed, you can get the 
 	- ```conda install -c conda-forge pycairo```
 	- ```conda install -c conda-forge google-cloud-storage```
 	- ```conda install -c conda-forge python-igraph```
+	- ```conda install -c anaconda pandas```
 
 ### Clone this repository to your computer
 
