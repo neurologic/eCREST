@@ -34,7 +34,7 @@ class ecrest:
         '''
         set up local stuff
         '''
-        self.version = 1.0
+        self.version = 1.1
         self.import_from_settings_dict(settings_dict)
         self.launch_viewer = launch_viewer
         
@@ -112,7 +112,7 @@ class ecrest:
             self.change_cell_structure()
 
             loc = self.get_locations_from_base_segs([self.cell_data['metadata']['main_seg']['base']])[self.cell_data['metadata']['main_seg']['base']]
-            self.change_view(loc, css=0.22398, ps=389.338)
+            self.change_view(loc, css=1.0, ps=6000.0)
             self.reset_seg_pr_layers()
 
             b = self.cell_data['base_segments']
@@ -976,7 +976,7 @@ class ecrest:
                 self.cell_data['base_segments']['unknown'].update(common_segments)
 
     def mark_branch_in_colour(self, action_state):
-        print('at least entered the function')
+        
         base_seg = self.check_selected_segment('base_segs', action_state, banned_segs = [self.cell_data['anchor_seg']])
 
         if base_seg == 'None': return
@@ -987,35 +987,32 @@ class ecrest:
             return
 
         col = self.viewer.state.layers['base_segs'].segment_colors
-        print(f'{base_seg} id loaded from click')
+
         if int(base_seg) not in col.keys(): return
 
         current_colour = col[int(base_seg)]
         downstream_segs = self.get_ds_segs_of_certain_col(base_seg, current_colour)
-        print('got downstream segs')
+        
         if current_colour != '#d2b48c':
-            print(f'{current_colour}')
             cell_part = 'unknown'
         else:
-            print('if you are seeing this message, then a new cell part is being selected rather than unknonw')
             cell_part = self.cell_structures[self.cell_structure_pos]
         
         new_colour = self.chosen_seg_colours[cell_part]
-        print('got new color')
+        
         for cs in self.cell_data['base_segments'].keys():
 
             if cs == cell_part:
                 self.cell_data['base_segments'][cs].update(downstream_segs)
-                print(f'added this segment and ds to {cell_part}')
+                print(f'added {int(base_seg)} and downstream segments to {cell_part}')
             else:
                 self.cell_data['base_segments'][cs] -= downstream_segs
-        print('changed location of downstream segs in cell_data base_segments dict')
+        
         with self.viewer.txn(overwrite=True) as s:
             for bs in downstream_segs:
                 s.layers['base_segs'].segment_colors[int(bs)] = new_colour
 
         self.update_seg_counts_msg()
-        print('updated mtab')
 
 
     def update_seg_counts_msg(self):
