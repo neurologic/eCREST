@@ -89,9 +89,9 @@ class ecrest:
             with self.viewer.config_state.txn() as s:
                 s.input_event_bindings.viewer['keyc'] = 'change-structure'
                 s.input_event_bindings.data_view['dblclick0'] = 'add-or-remove-seg'
-                s.input_event_bindings.data_view['alt+mousedown0'] = 'mark-branch-in-colour'
+                s.input_event_bindings.data_view['alt+mousedown0'] = 'mark_branch_in_colour'
                 s.input_event_bindings.data_view['shift+mousedown2'] = 'change-anchor-seg'
-                s.input_event_bindings.data_view['keyp'] = 'change-point'
+                s.input_event_bindings.viewer['keyp'] = 'change-point'
                 # s.input_event_bindings.viewer['keyg'] = 'grow-graph'
                 # s.input_event_bindings.viewer['keyk'] = 'increase-threshold'
                 # s.input_event_bindings.viewer['keyj'] = 'decrease-threshold'
@@ -984,7 +984,7 @@ class ecrest:
         if base_seg == 'None': return
 
         if base_seg not in [x['name'] for x in self.pr_graph.vs]:
-            print(f'Base segment {base_seg} was not in the base segment graph, updating displayed segments ...')
+            self.update_mtab(f'Base segment {base_seg} was not in the base segment graph, updating displayed segments ...', 'Cell Reconstruction')
             self.update_displayed_segs()
             return
 
@@ -995,7 +995,7 @@ class ecrest:
         current_colour = col[int(base_seg)]
         downstream_segs = self.get_ds_segs_of_certain_col(base_seg, current_colour)
 
-        if current_colour != '#D2B48C':
+        if current_colour != '#D2B48C': # if the current color is not 'unknown' color, make it unknown ...used to be color #708090':
             cell_part = 'unknown'
         else:
             cell_part = self.cell_structures[self.cell_structure_pos]
@@ -1012,6 +1012,16 @@ class ecrest:
         with self.viewer.txn(overwrite=True) as s:
             for bs in downstream_segs:
                 s.layers['base_segs'].segment_colors[int(bs)] = new_colour
+                
+        self.update_seg_counts_msg()
+
+
+    def update_seg_counts_msg(self):
+
+        b = self.cell_data['base_segments']
+        second_part = ', '.join([f'{x}: {len(b[x])}' for x in b.keys()])
+
+        self.update_msg(f'Current Base Segment Counts: {second_part}', layer='current_seg_count')
 
     def check_selected_segment(self, layer, action, banned_segs = [], acceptable_segs='all'):
 
@@ -1163,5 +1173,4 @@ def import_settings(dict_json):
         settings_dict=myfile.read()
         settings_dict = json.loads(settings_dict)
     return settings_dict
-            
             
