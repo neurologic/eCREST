@@ -34,7 +34,7 @@ class ecrest:
         '''
         set up local stuff
         '''
-        
+        self.version = 1.0
         self.import_from_settings_dict(settings_dict)
         self.launch_viewer = launch_viewer
         
@@ -89,7 +89,7 @@ class ecrest:
             with self.viewer.config_state.txn() as s:
                 s.input_event_bindings.viewer['keyc'] = 'change-structure'
                 s.input_event_bindings.data_view['dblclick0'] = 'add-or-remove-seg'
-                s.input_event_bindings.data_view['alt+mousedown0'] = 'mark_branch_in_colour'
+                s.input_event_bindings.data_view['alt+mousedown0'] = 'mark-branch-in-colour'
                 s.input_event_bindings.data_view['shift+mousedown2'] = 'change-anchor-seg'
                 s.input_event_bindings.viewer['keyp'] = 'change-point'
                 # s.input_event_bindings.viewer['keyg'] = 'grow-graph'
@@ -335,12 +335,12 @@ class ecrest:
                     s.layers[point_type].annotationColor = '#ff00ff'
                     s.layers[point_type].linkedSegmentationLayer = {"segments": 'base_segs'} # set it up linked to base_segs
                 elif point_type == 'pre-synaptic':
-                    s.layers[point_type].annotationColor = '#00EEEE'
+                    s.layers[point_type].annotationColor = '#00eeee'
                     s.layers[point_type].linkedSegmentationLayer = {"segments": 'base_segs'} # set it up linked to base_segs
                 elif (point_type == 'natural end') | (point_type == 'exit volume'):
-                    s.layers[point_type].annotationColor = '#FFFF00'
+                    s.layers[point_type].annotationColor = '#ffff00'
                 elif point_type == 'uncertain':
-                    s.layers[point_type].annotationColor = '#EE0000'
+                    s.layers[point_type].annotationColor = '#ee0000'
                 else:
                     s.layers[point_type].annotationColor = '#ffffff'
 
@@ -396,19 +396,17 @@ class ecrest:
                             co_ords_and_id.append(str(x.segments[0][0]))
 
                     this_type_points.append(co_ords_and_id)
-                    print('appended points')
 
             if t == 'Base Segment Merger':
                 self.cell_data['base_seg_merge_points'] = this_type_points
             else:
                 self.cell_data['end_points'][t] = this_type_points
-                print('made it to saving points')
 
         return True                            
 
     def set_seg_colours(self):
-        chosen_col = '#D2B48C'
-        self.chosen_seg_colours = {'unknown': '#D2B48C'} # tan
+        chosen_col = '#d2b48c'
+        self.chosen_seg_colours = {'unknown': '#d2b48c'} # tan
 
         # acceptable_colours = set(['#FFFF00', '#800080', '#008000', '#FF00FF', '#00FF00', '#FF69B4', '#FF8C00'])
         # used_colours = set()
@@ -421,19 +419,19 @@ class ecrest:
             #     available_colours = acceptable_colours
             
             if x=='multiple':
-                chosen_col = '#9C661F' # white
+                chosen_col = '#9c661f' # white
 
             if x=='axon':
                 chosen_col = '#008000' # green
 
             if x=='dendrite':
-                chosen_col = '#FFFF00' # yellow
+                chosen_col = '#ffff00' # yellow
 
             if x=='basal dendrite': # orange-red
-                chosen_col = '#CD4B00'
+                chosen_col = '#cd4b00'
 
             if x=='apical dendrite': # orange
-                chosen_col = '#FF8000'
+                chosen_col = '#ff8000'
     
             if x not in self.cell_data['base_segments'].keys():
                 chosen_col = '#708090' # if not one of the explicitly chosen structures, make it slate gray
@@ -787,10 +785,10 @@ class ecrest:
 
             for bs in ds:
                 if int(bs) not in s.layers['base_segs'].segment_colors.keys():
-                    s.layers['base_segs'].segment_colors[int(bs)] = '#D2B48C'
+                    s.layers['base_segs'].segment_colors[int(bs)] = '#d2b48c'
 
             ds = set([x for x in ds if s.layers['base_segs'].segment_colors[int(x)] == colour])
-        
+        print(f'{list(ds)[0:10]} first 10 ds segments... just to check they exist')
         return ds
 
     def update_displayed_segs(self):
@@ -815,7 +813,7 @@ class ecrest:
                 layer = 'base_segs'
             
                 for bs in missing_segs:
-                    s.layers[layer].segment_colors[int(bs)] = '#D2B48C'
+                    s.layers[layer].segment_colors[int(bs)] = '#d2b48c'
                     s.layers[layer].segments.add(int(bs)) 
 
                 for bs in segs_to_remove:
@@ -886,7 +884,7 @@ class ecrest:
             with self.viewer.txn(overwrite=True) as s:
 
                 for bs in base_ids:
-                    s.layers['base_segs'].segment_colors[int(bs)] = '#D2B48C'
+                    s.layers['base_segs'].segment_colors[int(bs)] = '#d2b48c'
                     s.layers['base_segs'].segments.add(int(bs))
 
 
@@ -978,7 +976,7 @@ class ecrest:
                 self.cell_data['base_segments']['unknown'].update(common_segments)
 
     def mark_branch_in_colour(self, action_state):
-
+        print('at least entered the function')
         base_seg = self.check_selected_segment('base_segs', action_state, banned_segs = [self.cell_data['anchor_seg']])
 
         if base_seg == 'None': return
@@ -989,31 +987,35 @@ class ecrest:
             return
 
         col = self.viewer.state.layers['base_segs'].segment_colors
-
+        print(f'{base_seg} id loaded from click')
         if int(base_seg) not in col.keys(): return
 
         current_colour = col[int(base_seg)]
         downstream_segs = self.get_ds_segs_of_certain_col(base_seg, current_colour)
-
-        if current_colour != '#D2B48C': # if the current color is not 'unknown' color, make it unknown ...used to be color #708090':
+        print('got downstream segs')
+        if current_colour != '#d2b48c':
+            print(f'{current_colour}')
             cell_part = 'unknown'
         else:
+            print('if you are seeing this message, then a new cell part is being selected rather than unknonw')
             cell_part = self.cell_structures[self.cell_structure_pos]
         
         new_colour = self.chosen_seg_colours[cell_part]
-
+        print('got new color')
         for cs in self.cell_data['base_segments'].keys():
 
             if cs == cell_part:
                 self.cell_data['base_segments'][cs].update(downstream_segs)
+                print(f'added this segment and ds to {cell_part}')
             else:
                 self.cell_data['base_segments'][cs] -= downstream_segs
-
+        print('changed location of downstream segs in cell_data base_segments dict')
         with self.viewer.txn(overwrite=True) as s:
             for bs in downstream_segs:
                 s.layers['base_segs'].segment_colors[int(bs)] = new_colour
-                
+
         self.update_seg_counts_msg()
+        print('updated mtab')
 
 
     def update_seg_counts_msg(self):
@@ -1047,7 +1049,7 @@ class ecrest:
         if base_seg == 'None': return
 
         with self.viewer.txn(overwrite=True) as s:
-            s.layers['base_segs'].segment_colors[int(self.cell_data['anchor_seg'])] = '#D2B48C'
+            s.layers['base_segs'].segment_colors[int(self.cell_data['anchor_seg'])] = '#d2b48c'
             s.layers['base_segs'].segment_colors[int(base_seg)] = '#1e90ff'
         
         try:
