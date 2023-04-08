@@ -2747,6 +2747,8 @@ class UserInterface:
         cell_data['graph_nodes'] = [x['name'] for x in self.pr_graph.vs]
         cell_data['graph_edges'] = [(self.pr_graph.vs[x.source]['name'], self.pr_graph.vs[x.target]['name']) for x in self.pr_graph.es]
 
+        if not self.save_point_types_successfully(): return
+        
         # Convert sets to lists for saving in json file:
         for dtype in cell_data['base_segments'].keys():
             cell_data['base_segments'][dtype] = list(cell_data['base_segments'][dtype])
@@ -3924,9 +3926,15 @@ class UserInterface:
         with self.viewer.txn(overwrite=True) as s:
             s.layers['base_segs'].segment_colors[int(self.cell_data['anchor_seg'])] = '#D2B48C'
             s.layers['base_segs'].segment_colors[int(base_seg)] = '#1e90ff'
+        
+        try:
+            self.cell_data['metadata']['old-anchor'].append(self.cell_data['anchor_seg'])
+        except:
+            self.cell_data['metadata']['old-anchor'] = [self.cell_data['anchor_seg']]
             
         self.cell_data['anchor_seg'] = deepcopy(base_seg)
-
+        self.cell_data['metadata']['main_seg']['base'] = deepcopy(base_seg)
+     
 
     def assert_segs_in_sync(self, return_segs=False):
 

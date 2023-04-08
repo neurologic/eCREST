@@ -213,7 +213,7 @@ class ecrest:
         self.cell_data['removed_base_segs'] = set(self.cell_data['removed_base_segs'])
         
         main_base_id = self.cell_data['metadata']['main_seg']['base']
-        print(f'Loading a CREST instance for LOADED Reconstruction of {main_base_id}')
+        # print(f'Loading a CREST instance for LOADED Reconstruction of {main_base_id}')
         
         self.load_graph_from_celldata()
         self.resolving_seg_overlap()
@@ -396,11 +396,13 @@ class ecrest:
                             co_ords_and_id.append(str(x.segments[0][0]))
 
                     this_type_points.append(co_ords_and_id)
+                    print('appended points')
 
             if t == 'Base Segment Merger':
                 self.cell_data['base_seg_merge_points'] = this_type_points
             else:
                 self.cell_data['end_points'][t] = this_type_points
+                print('made it to saving points')
 
         return True                            
 
@@ -546,6 +548,12 @@ class ecrest:
         
     def save_cell_graph(self, directory_path = None, file_name=None, save_to_cloud=False):
         
+        self.resolving_seg_overlap()
+        if not self.save_point_types_successfully(): 
+            return
+        self.update_displayed_segs()
+        self.save_timing_and_user()
+    
         timestamp = str(datetime.now())[:-7].replace(':','.')
         main_base_id = self.cell_data['metadata']['main_seg']['base']
                 
@@ -560,6 +568,7 @@ class ecrest:
         cell_data['graph_nodes'] = [x['name'] for x in self.pr_graph.vs]
         cell_data['graph_edges'] = [(self.pr_graph.vs[x.source]['name'], self.pr_graph.vs[x.target]['name']) for x in self.pr_graph.es]
 
+    
         completion_list = list(set(cell_data['metadata']['completion']))
         completion_list.sort()
         completion_string = ','.join(completion_list).replace('_', ' ')
@@ -1030,8 +1039,15 @@ class ecrest:
         with self.viewer.txn(overwrite=True) as s:
             s.layers['base_segs'].segment_colors[int(self.cell_data['anchor_seg'])] = '#D2B48C'
             s.layers['base_segs'].segment_colors[int(base_seg)] = '#1e90ff'
+        
+        try:
+            self.cell_data['metadata']['old-anchor'].append(self.cell_data['anchor_seg'])
+        except:
+            self.cell_data['metadata']['old-anchor'] = [self.cell_data['anchor_seg']]
             
         self.cell_data['anchor_seg'] = deepcopy(base_seg)
+        self.cell_data['metadata']['main_seg']['base'] = deepcopy(base_seg)
+        
         
     def change_view(self, location, css=None, ps=None):
 
@@ -1052,6 +1068,16 @@ class ecrest:
             
             if ps != None:
                 s.projectionScale = ps
+                
+    def save_timing_and_user(self):
+
+        ### CAN GET RID OF LATER
+        if type(self.cell_data['metadata']['timing']) == dict:
+            self.cell_data['metadata']['timing'] = [a for b in self.cell_data['metadata']['timing'].values() for a in b]
+        ### CAN GET RID OF LATER
+
+        time_taken = (time()-self.start_time)/60
+        self.cell_data['metadata']['timing'].append(time_taken)
                 
     def reset_seg_pr_layers(self, two_d_intensity = 0.5):
 
@@ -1137,4 +1163,5 @@ def import_settings(dict_json):
         settings_dict=myfile.read()
         settings_dict = json.loads(settings_dict)
     return settings_dict
+            
             
