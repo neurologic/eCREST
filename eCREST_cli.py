@@ -788,7 +788,7 @@ class ecrest:
                     s.layers['base_segs'].segment_colors[int(bs)] = '#d2b48c'
 
             ds = set([x for x in ds if s.layers['base_segs'].segment_colors[int(x)] == colour])
-        print(f'{list(ds)[0:10]} first 10 ds segments... just to check they exist')
+
         return ds
 
     def update_displayed_segs(self):
@@ -1004,7 +1004,6 @@ class ecrest:
 
             if cs == cell_part:
                 self.cell_data['base_segments'][cs].update(downstream_segs)
-                print(f'added {int(base_seg)} and downstream segments to {cell_part}')
             else:
                 self.cell_data['base_segments'][cs] -= downstream_segs
         
