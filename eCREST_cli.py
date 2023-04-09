@@ -547,9 +547,12 @@ class ecrest:
     def save_cell_graph(self, directory_path = None, file_name=None, save_to_cloud=False):
         
         self.resolving_seg_overlap()
-        if not self.save_point_types_successfully(): 
-            return
-        self.update_displayed_segs()
+
+        if self.launch_viewer == True:
+            if not self.save_point_types_successfully(): 
+                return
+            self.update_displayed_segs()
+
         self.save_timing_and_user()
     
         timestamp = str(datetime.now())[:-7].replace(':','.')
