@@ -1168,6 +1168,11 @@ class ecrest:
             print('cell type not defined for this cell yet -- use cell_type.define(ctype,method)')
 
         return ctype
+        
+    def update_mtab(self, new_message, tab):
+
+        self.textboxes[tab].insert(INSERT, new_message + "\n")
+        self.textboxes[tab].see("end")
     
 def import_settings(dict_json):
     with open(dict_json, 'r') as myfile: # 'p' is the dirpath and 'f' is the filename from the created 'd' dictionary
