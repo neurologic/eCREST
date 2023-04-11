@@ -1,8 +1,8 @@
 {
     "file_completion": {},
     "Cell Reconstruction": {
-        "cred": "/Users/kperks/Documents/ell-connectome/eCREST-local-files/Mariela_bigquery_exports_agglo_v230111c_16_crest_proofreading_database.db",
-        "save_dir": "/Users/kperks/Documents/ell-connectome/eCREST-local-files/in-progress",
+        "cred": "",
+        "save_dir": "",
         "other_points": "exit volume, natural end, uncertain, pre-synaptic, post-synaptic",
         "cell_structures": " axon, apical dendrite, basal dendrite, dendrite, multiple",
         "max_base_seg_add": "1000"
