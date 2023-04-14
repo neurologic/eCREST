@@ -8,7 +8,8 @@ from igraph import plot as ig_plot
 from scipy.spatial.distance import cdist
 from random import choice as random_choice
 from itertools import combinations
-from numpy import array, unravel_index, argmin, mean
+from numpy import array, unravel_index, argmin, mean, nan
+import pandas as pd
 from copy import deepcopy
 from datetime import datetime
 from time import time
@@ -1173,7 +1174,41 @@ class ecrest:
         # self.textboxes[tab].insert(INSERT, new_message + "\n")
         # self.textboxes[tab].see("end")
         print(new_message)
-        
+
+    def get_base_segments_dict(self,dirpath):
+
+        nodes = [child.name.split('_')[2] for child in sorted(dirpath.iterdir()) 
+         if (child.name[0]!='.') & (child.is_file())] # ignore hidden files]
+
+        nodefiles = dict()
+        for child in sorted(dirpath.iterdir()):
+            if (child.name[0]!='.') & (child.is_file()):
+                nodefiles[child.name.split('_')[2]] = child
+                            
+        # Create a base_segments dictionary of all cells in the directory
+        base_segments = {}
+        for x in nodes:
+            with open(nodefiles[x], 'r') as myfile: # 'p' is the dirpath and 'f' is the filename from the created 'd' dictionary
+                cell_data=myfile.read()
+                cell_data = json.loads(cell_data)
+            base_segments[cell_data['metadata']['main_seg']['base']] = set([a for b in cell_data['base_segments'].values() for a in b]) #cell.cell_data['base_segments']
+
+        return base_segments
+
+    def check_duplicates(self,base_segments):
+        '''
+        base_segments is a dictionary of all segments for other cells to check against
+        returns a dictionary of cells and percent overlap with that cell
+        '''
+        this_cell = set([a for b in self.cell_data['base_segments'].values() for a in b])
+        overlap = {}
+        for x in base_segments.keys():
+            overlap[x]=len(this_cell&base_segments[x])/len(base_segments[x])
+        df = pd.DataFrame.from_dict(overlap,orient='index').reset_index().replace(0, nan, inplace=False).dropna()
+
+        return df
+
+
 def import_settings(dict_json):
     with open(dict_json, 'r') as myfile: # 'p' is the dirpath and 'f' is the filename from the created 'd' dictionary
         settings_dict=myfile.read()
