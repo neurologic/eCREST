@@ -172,9 +172,15 @@ The post-synaptic target segment (select a large perimeter segment apposed to th
 - Double left click: add or remove a base segment (see 'Principles' above for more details)
 - Alt + left click: mark a branch and its sub-branches in colour and as members of a specified cell structure
 - C: change the selected colour and corresponding cell structure to mark branches as (displayed in bottom left of screen)
-- Control + left click: mark the end of a branch with a specific End Point Type, or mark a base segment merger
+- Annotations
+  - Control + left click: Add Annotation with a specific End Point Type, or mark a base segment merger
+  - Ctrl+RMB: Select Annotation
+  - Alt+LMB: Move Annotation
+  - Ctrl+Alt+RMB: Delete Annotation
 - P: change the selected End Point Type (including a category to mark base segment mergers)
 - Shift + right click: select a new 'Anchor segment'
+
+
 
 # Proofreading in CREST - Saving a cell
 

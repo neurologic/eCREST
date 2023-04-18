@@ -134,7 +134,7 @@ class ecrest:
         self.cell_structure_pos = -1
         self.change_cell_structure()
 
-        loc = self.get_locations_from_base_segs([self.cell_data['metadata']['main_seg']['base']])[self.cell_data['metadata']['main_seg']['base']]
+        loc = self.get_locations_from_base_segs([self.cell_data['metadata']['main_seg']['base']])
         self.change_view(loc, css=1.0, ps=6000.0)
         
         self.reset_seg_pr_layers()
