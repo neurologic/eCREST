@@ -1,4 +1,4 @@
-last week
+April 17
 
 129 cells in the network that fall within cell types of interest (nodes in the graph):
 
@@ -24,7 +24,7 @@ last week
 577 connected synapses with a reconstructed partner in these mg2
 
 ---
-week of april 26
+april 26
 
 149 cells in the network that fall within cell types of interest (nodes in the graph):
 
@@ -48,3 +48,11 @@ week of april 26
 785 connected synapses with a reconstructed partner in these mg1
 18 mg2 cells
 735 connected synapses with a reconstructed partner in these mg2
+
+---
+april 27
+
+453 unique edges among:
+46 unique pre synaptic cells - to - 141 unique post-synaptic cells (counts different structures on same cell as different)
+
+> So, instead of there being more post-syn not reconstructed, new synapses are tending to connect to already reconstructed cells at this point?
