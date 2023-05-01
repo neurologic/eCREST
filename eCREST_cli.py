@@ -819,7 +819,11 @@ class ecrest:
                 for bs in missing_segs:
                     s.layers[layer].segment_colors[int(bs)] = '#d2b48c'
                     s.layers[layer].segments.add(int(bs)) 
-
+        if not segs_to_remove == set():
+            with self.viewer.txn(overwrite=True) as s:
+                
+                layer = 'base_segs'
+                
                 for bs in segs_to_remove:
                     if int(bs) in s.layers[layer].segments:
                         s.layers[layer].segments.remove(int(bs))
