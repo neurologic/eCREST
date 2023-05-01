@@ -1241,10 +1241,12 @@ class ecrest:
             overlap.append(len(this_cell&base_segments[x])/len(base_segments[x]))
             num_dup.append(len(this_cell&base_segments[x]))
         df = pd.DataFrame({
+            "self": self.base_seg,
             "cells": list(base_segments.keys()),
             "overlap-percent": overlap,
             "number_seg_lap": num_dup
             }).replace(0, nan, inplace=False).dropna()
+        df = df[df['cells'] != self.base_seg]
 
         return df
 

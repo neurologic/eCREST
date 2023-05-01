@@ -959,6 +959,8 @@ class ecrest:
         self.pr_graph.add_edges([(sel_curr, sel_new)])
         self.cell_data['added_graph_edges'].append([sel_curr, sel_new, dist])
 
+        self.add_cc_bridging_edges_pairwise() # added this because adding segments not close to others made clusters >1
+
         assert len(self.pr_graph.clusters(mode='weak')) == 1     
 
         return f', linked base segments {sel_curr} and {sel_new}, {round(dist)}nm apart, '
@@ -1175,6 +1177,7 @@ class ecrest:
         # self.textboxes[tab].see("end")
         print(new_message)
 
+
     def get_base_segments_dict(self,dirpath):
 
         nodes = [child.name.split('_')[2] for child in sorted(dirpath.iterdir()) 
@@ -1200,13 +1203,31 @@ class ecrest:
         base_segments is a dictionary of all segments for other cells to check against
         returns a dictionary of cells and percent overlap with that cell
         '''
+        ### OLD VERSION
+        # this_cell = set([a for b in self.cell_data['base_segments'].values() for a in b])
+        # overlap = {}
+        # for x in base_segments.keys():
+        #     overlap[x]=len(this_cell&base_segments[x])/len(base_segments[x])
+        # df = pd.DataFrame.from_dict(overlap,orient='index').reset_index().replace(0, nan, inplace=False).dropna()
+
+        # return df
+
         this_cell = set([a for b in self.cell_data['base_segments'].values() for a in b])
-        overlap = {}
+        overlap = []
+        num_dup = []
         for x in base_segments.keys():
-            overlap[x]=len(this_cell&base_segments[x])/len(base_segments[x])
-        df = pd.DataFrame.from_dict(overlap,orient='index').reset_index().replace(0, nan, inplace=False).dropna()
+            overlap.append(len(this_cell&base_segments[x])/len(base_segments[x]))
+            num_dup.append(len(this_cell&base_segments[x]))
+        df = pd.DataFrame({
+            "self": self.cell_data['metadata']['main_seg']['base'],
+            "dups": list(base_segments.keys()),
+            "overlap-percent": overlap,
+            "number_seg_lap": num_dup
+            }).replace(0, nan, inplace=False).dropna()
+        df = df[df['dups'] != self.cell_data['metadata']['main_seg']['base']]
 
         return df
+
 
 
 def import_settings(dict_json):
