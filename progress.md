@@ -199,3 +199,32 @@ may 12
 1618 connected synapses with a reconstructed partner in these mg2
 612 unique edges total (of various weights)
 
+--- 
+
+may 14
+after most missing big cell files added from the last batch of synapses
+
+168 cells in the network that fall within cell types of interest (nodes in the graph):
+
+36 lf cells.
+32 lg cells.
+47 mg1 cells.
+53 mg2 cells.
+0 lx cells.
+0 mgx cells.
+
+78 of these are mg_ cells with post-synaptic segments labeled for their synapses
+5507 total post-synapstic segments labeled from mg_ cells in the network
+22 mg1/2 cells without labeled synapses
+
+643 unique edges among:
+67 unique pre synaptic cells - to - 150 unique post-synaptic cells (counts different structures on same cell as different)
+
+3296 synapses with reconstructed partners in current network,
+3296 synapses with reconstructed partners from mg cells pre-synaptically.
+34 mg1 cells with 
+1605 connected synapses with a reconstructed partner in these mg1
+33 mg2 cells
+1691 connected synapses with a reconstructed partner in these mg2
+643 unique edges total (of various weights)
+
