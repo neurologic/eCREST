@@ -1199,6 +1199,7 @@ class ecrest:
                 cell_data=myfile.read()
                 cell_data = json.loads(cell_data)
             base_segments[cell_data['metadata']['main_seg']['base']] = set([a for b in cell_data['base_segments'].values() for a in b]) #cell.cell_data['base_segments']
+            # base_segments[x] = set([a for b in cell_data['base_segments'].values() for a in b]) #cell.cell_data['base_segments']
 
         return base_segments
 
