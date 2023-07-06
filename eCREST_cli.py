@@ -612,6 +612,8 @@ class ecrest:
                 q = ','.join([str(x) for x in base_segs[batch*batch_size:(batch+1)*batch_size]])
                 
                 query = f"""SELECT seg_id, x, y, z FROM base_location WHERE seg_id IN ({q})"""
+                '''The following query pulls from the table that is pixel-based rather than center of mass based!'''
+                # query = f"""SELECT cast(objects.id as INT64) as seg_id, sample_voxel.x as x, sample_voxel.y as y, sample_voxel.z as z, FROM 'lcht-goog-connectomics.ell_roi450um_seg32fb16fb_220930.objinfo' as objects WHERE objects.id IN ({q})"""
 
                 self.db_cursors.execute(query)
 
