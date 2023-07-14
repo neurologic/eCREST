@@ -1197,6 +1197,7 @@ class ecrest:
         # Create a base_segments dictionary of all cells in the directory
         base_segments = {}
         for x in nodes:
+            # print(x)
             with open(nodefiles[x], 'r') as myfile: # 'p' is the dirpath and 'f' is the filename from the created 'd' dictionary
                 cell_data=myfile.read()
                 cell_data = json.loads(cell_data)
