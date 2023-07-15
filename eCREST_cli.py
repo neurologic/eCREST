@@ -1187,11 +1187,11 @@ class ecrest:
     def get_base_segments_dict(self,dirpath):
 
         nodes = [child.name.split('_')[2] for child in sorted(dirpath.iterdir()) 
-         if (child.name[0]!='.') & (child.is_file())] # ignore hidden files]
+         if (child.name[0]!='.') & (child.is_file()) & ("desktop" not in child.name)] # ignore hidden files]
 
         nodefiles = dict()
         for child in sorted(dirpath.iterdir()):
-            if (child.name[0]!='.') & (child.is_file()):
+            if (child.name[0]!='.') & (child.is_file()) & ("desktop" not in child.name):
                 nodefiles[child.name.split('_')[2]] = child
                             
         # Create a base_segments dictionary of all cells in the directory
