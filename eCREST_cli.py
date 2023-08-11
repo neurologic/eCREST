@@ -90,7 +90,7 @@ class ecrest:
             with self.viewer.config_state.txn() as s:
                 s.input_event_bindings.viewer['keyc'] = 'change-structure'
                 s.input_event_bindings.data_view['dblclick0'] = 'add-or-remove-seg'
-                s.input_event_bindings.data_view['alt+mousedown0'] = 'mark-branch-in-colour'
+                s.input_event_bindings.data_view['alt+mousedown2'] = 'mark-branch-in-colour' # changed from alt+mousedown0 so that can preserve "move annotation"
                 s.input_event_bindings.data_view['shift+mousedown2'] = 'change-anchor-seg'
                 s.input_event_bindings.viewer['keyp'] = 'change-point'
                 # s.input_event_bindings.viewer['keyg'] = 'grow-graph'
@@ -351,8 +351,26 @@ class ecrest:
                 # If data already exists for this point type:
 
         self.load_annotation_layer_points()
-        
+    
+    def add_endpoint_annotation_layers(self,layer_names):
+        self.point_types = list(set(self.point_types + list(self.cell_data['end_points'].keys()) + layer_names))
+        self.point_types = [x for x in self.point_types if not ('base' in x.lower() and 'merge' in x.lower())]
+
+        with self.viewer.txn(overwrite=True) as s:
+            for point_type in layer_names:
+                s.layers[point_type] = neuroglancer.AnnotationLayer()
+                s.layers[point_type].tool = "annotatePoint"
+                s.layers[point_type].tab = 'Annotations'
+                s.layers[point_type].annotationColor = '#ffffff'
+                # if color != None:
+                #     s.layers[point_type].annotationColor = color
+
+        self.load_annotation_layer_points()
+
     def load_annotation_layer_points(self):
+
+        self.point_types = list(set(self.point_types + list(self.cell_data['end_points'].keys())))
+        self.point_types = [x for x in self.point_types if not ('base' in x.lower() and 'merge' in x.lower())]
         
         with self.viewer.txn(overwrite=True) as s:
             for point_type in self.point_types:
