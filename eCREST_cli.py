@@ -101,7 +101,16 @@ class ecrest:
 
             with self.viewer.config_state.txn() as s:
                 s.show_layer_panel = True ###
-                
+
+            # with self.viewer.txn() as s:
+            #     s.show_scale_bar = True
+            #     s.scale_bar_options = {
+            #         "backgroundColor": "rgba(255, 255, 255, 0.8)",
+            #         "foregroundColor": "black",
+            #         "position": "top-left", 
+            #         "unitsPerPixel": 1.0
+            #       }
+                                
             # setup point annoations
             self.set_endpoint_annotation_layers()
             self.set_base_seg_merger_layer()
@@ -233,6 +242,7 @@ class ecrest:
         results = self.db_cursors.fetchall()[0]
 
         return results
+
         
     def connect_db(self, db_path):
 
@@ -299,7 +309,20 @@ class ecrest:
             self.cell_structure_pos += 1
             
         self.update_msg(f'Current Cell Structure (C): {self.cell_structures[self.cell_structure_pos]}', layer='Current Cell Structure')
-            
+
+    def change_key_binding(self,keybindings_dict):
+        '''
+        keybindings_dict = {'key_strokes':'function'}
+        '''
+
+        with self.viewer.config_state.txn() as s:
+            for k,v in keybindings_dict.items():
+                s.input_event_bindings.data_view[k]=v
+
+            keybindings_map = s.input_event_bindings.data_view
+
+        return keybindings_map
+
     def adjust_annotations_structures(self):
         '''
         when loading a cell from a file, add necessary annotations and structures if do not exist
@@ -356,6 +379,10 @@ class ecrest:
         self.point_types = list(set(self.point_types + list(self.cell_data['end_points'].keys()) + layer_names))
         self.point_types = [x for x in self.point_types if not ('base' in x.lower() and 'merge' in x.lower())]
 
+        for t in layer_names:
+            if t not in self.cell_data['end_points'].keys():
+                self.cell_data['end_points'][t] = []
+
         with self.viewer.txn(overwrite=True) as s:
             for point_type in layer_names:
                 s.layers[point_type] = neuroglancer.AnnotationLayer()
@@ -367,6 +394,16 @@ class ecrest:
 
         self.load_annotation_layer_points()
 
+    def del_endpoint_annotation_layers(self,layer_names):
+        self.point_types = [p for p in self.point_types if p not in layer_names]
+
+        with self.viewer.txn() as s:
+            for t in layer_names:
+                del s.layers[t]
+        
+        for t in layer_names:
+            _ = self.cell_data['end_points'].pop(t)
+
     def load_annotation_layer_points(self):
 
         self.point_types = list(set(self.point_types + list(self.cell_data['end_points'].keys())))
@@ -374,6 +411,8 @@ class ecrest:
         
         with self.viewer.txn(overwrite=True) as s:
             for point_type in self.point_types:
+
+                s.layers[point_type].annotations = [] # first, clear any existing in viewer so that points can be deleted
 
                 # If data already exists for this point type:
                 if point_type in self.cell_data['end_points'].keys():
@@ -1261,4 +1300,18 @@ def import_settings(dict_json):
         settings_dict=myfile.read()
         settings_dict = json.loads(settings_dict)
     return settings_dict
-            
+
+def get_cell_filepaths(directory_path):
+
+    '''
+    expects this ecrest format for cell_graph filename:
+    cell_graph_[cell_id]_[]_[date] [time].json
+    '''
+
+    cell_filepaths = dict()
+    for child in sorted(directory_path.iterdir()):
+        if ('cell_graph' in child.name) & (child.is_file()):
+            cell_filepaths[child.name.split('_')[2]] = child
+
+    return cell_filepaths
+        
