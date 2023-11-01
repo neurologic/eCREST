@@ -375,7 +375,7 @@ class ecrest:
 
         self.load_annotation_layer_points()
     
-    def add_endpoint_annotation_layers(self,layer_names):
+    def add_endpoint_annotation_layers(self,layer_names, link=False):
         self.point_types = list(set(self.point_types + list(self.cell_data['end_points'].keys()) + layer_names))
         self.point_types = [x for x in self.point_types if not ('base' in x.lower() and 'merge' in x.lower())]
 
@@ -389,6 +389,9 @@ class ecrest:
                 s.layers[point_type].tool = "annotatePoint"
                 s.layers[point_type].tab = 'Annotations'
                 s.layers[point_type].annotationColor = '#ffffff'
+
+                if link==True:
+                    s.layers[point_type].linkedSegmentationLayer = {"segments": 'base_segs'} # set it up linked to base_segs
                 # if color != None:
                 #     s.layers[point_type].annotationColor = color
 
