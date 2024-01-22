@@ -122,7 +122,7 @@ class ecrest:
             self.change_cell_structure()
 
             loc = self.get_locations_from_base_segs([self.cell_data['metadata']['main_seg']['base']])[self.cell_data['metadata']['main_seg']['base']]
-            self.change_view(loc, css=1.0, ps=6000.0)
+            self.change_view(loc, css=0.5, ps=3000.0)
             self.reset_seg_pr_layers()
 
             b = self.cell_data['base_segments']
@@ -376,6 +376,11 @@ class ecrest:
         self.load_annotation_layer_points()
     
     def add_endpoint_annotation_layers(self,layer_names, link=False):
+        
+        if self.launch_viewer == True:
+            if not self.save_point_types_successfully(): 
+                return
+
         self.point_types = list(set(self.point_types + list(self.cell_data['end_points'].keys()) + layer_names))
         self.point_types = [x for x in self.point_types if not ('base' in x.lower() and 'merge' in x.lower())]
 
