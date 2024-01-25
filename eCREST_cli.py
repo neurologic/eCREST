@@ -388,17 +388,17 @@ class ecrest:
             if t not in self.cell_data['end_points'].keys():
                 self.cell_data['end_points'][t] = []
 
-        with self.viewer.txn(overwrite=True) as s:
-            for point_type in layer_names:
-                s.layers[point_type] = neuroglancer.AnnotationLayer()
-                s.layers[point_type].tool = "annotatePoint"
-                s.layers[point_type].tab = 'Annotations'
-                s.layers[point_type].annotationColor = '#ffffff'
+                with self.viewer.txn(overwrite=True) as s:
+                    for point_type in layer_names:
+                        s.layers[point_type] = neuroglancer.AnnotationLayer()
+                        s.layers[point_type].tool = "annotatePoint"
+                        s.layers[point_type].tab = 'Annotations'
+                        s.layers[point_type].annotationColor = '#ffffff'
 
-                if link==True:
-                    s.layers[point_type].linkedSegmentationLayer = {"segments": 'base_segs'} # set it up linked to base_segs
-                # if color != None:
-                #     s.layers[point_type].annotationColor = color
+                        if link==True:
+                            s.layers[point_type].linkedSegmentationLayer = {"segments": 'base_segs'} # set it up linked to base_segs
+                        # if color != None:
+                        #     s.layers[point_type].annotationColor = color
 
         self.load_annotation_layer_points()
 
@@ -414,61 +414,193 @@ class ecrest:
 
     def load_annotation_layer_points(self):
 
-        self.point_types = list(set(self.point_types + list(self.cell_data['end_points'].keys())))
-        self.point_types = [x for x in self.point_types if not ('base' in x.lower() and 'merge' in x.lower())]
-        
         with self.viewer.txn(overwrite=True) as s:
             for point_type in self.point_types:
-
                 s.layers[point_type].annotations = [] # first, clear any existing in viewer so that points can be deleted
 
                 # If data already exists for this point type:
                 if point_type in self.cell_data['end_points'].keys():
 
                     for pos, point in enumerate(self.cell_data['end_points'][point_type]):
-
-                        if len(point)==3: # then there is no segment ID associated with the annotation point
                         
-                            point_array = array([int(point[x]/self.vx_sizes['em'][x]) for x in range(3)])
+                        if point[-1] == 'annotatePoint':
+                            point = point[0]
+                            
+                            if len(point)==3: # then there is no segment ID associated with the annotation point
+
+                                point_array = array([int(point[x]/self.vx_sizes['em'][x]) for x in range(3)])
+                                point_id = f'{point_type}_{pos}'
+                                pa = neuroglancer.PointAnnotation(id=point_id, point = point_array)
+                                s.layers[point_type].annotations.append(pa)
+
+                            if len(point)==4: # then include the segment ID with the annotation point
+                                point_array = array([int(point[x]/self.vx_sizes['em'][x]) for x in range(3)])
+                                point_id = f'{point_type}_{pos}'
+                                segment_id = point[3]
+                                pa = neuroglancer.PointAnnotation(id=point_id, point = point_array, segments = [[segment_id]])
+                                s.layers[point_type].annotations.append(pa)         
+                        
+                        if point[-1] == 'annotateBoundingBox':
+                            pointA = point[0]
+                            pointB = point[1]
+                            
+                            pointA_array = array([int(pointA[x]/self.vx_sizes['em'][x]) for x in range(3)])
+                            pointB_array = array([int(pointB[x]/self.vx_sizes['em'][x]) for x in range(3)])
                             point_id = f'{point_type}_{pos}'
-                            pa = neuroglancer.PointAnnotation(id=point_id, point = point_array)
+                            pa = neuroglancer.AxisAlignedBoundingBoxAnnotation(id=point_id, pointA = pointA_array, pointB = pointB_array)
+                            s.layers[point_type].annotations.append(pa)
+                        
+                        if point[-1] == 'annotateSphere':
+                            center = point[0]
+                            radii = point[1]
+                            
+                            center_array = array([int(center[x]/self.vx_sizes['em'][x]) for x in range(3)])
+                            radii_array = array([int(radii[x]/self.vx_sizes['em'][x]) for x in range(3)])
+                            point_id = f'{point_type}_{pos}'
+                            pa = neuroglancer.EllipsoidAnnotation(id=point_id, center = center_array, radii = radii_array)
                             s.layers[point_type].annotations.append(pa)
 
-                        if len(point)==4: # then include the segment ID with the annotation point
-                            point_array = array([int(point[x]/self.vx_sizes['em'][x]) for x in range(3)])
-                            point_id = f'{point_type}_{pos}'
-                            segment_id = point[3]
-                            pa = neuroglancer.PointAnnotation(id=point_id, point = point_array, segments = [[segment_id]])
-                            s.layers[point_type].annotations.append(pa)                     
+                # self.point_types = list(set(self.point_types + list(self.cell_data['end_points'].keys())))
+                # self.point_types = [x for x in self.point_types if not ('base' in x.lower() and 'merge' in x.lower())]
+        
+        # with self.viewer.txn(overwrite=True) as s:
+        #     for point_type in self.point_types:
+
+        #         s.layers[point_type].annotations = [] # first, clear any existing in viewer so that points can be deleted
+
+        #         # If data already exists for this point type:
+        #         if point_type in self.cell_data['end_points'].keys():
+
+        #             for pos, point in enumerate(self.cell_data['end_points'][point_type]):
+
+        #                 if len(point)==3: # then there is no segment ID associated with the annotation point
+                        
+        #                     point_array = array([int(point[x]/self.vx_sizes['em'][x]) for x in range(3)])
+        #                     point_id = f'{point_type}_{pos}'
+        #                     pa = neuroglancer.PointAnnotation(id=point_id, point = point_array)
+        #                     s.layers[point_type].annotations.append(pa)
+
+        #                 if len(point)==4: # then include the segment ID with the annotation point
+        #                     point_array = array([int(point[x]/self.vx_sizes['em'][x]) for x in range(3)])
+        #                     point_id = f'{point_type}_{pos}'
+        #                     segment_id = point[3]
+        #                     pa = neuroglancer.PointAnnotation(id=point_id, point = point_array, segments = [[segment_id]])
+        #                     s.layers[point_type].annotations.append(pa)                     
+
+    def add_endpoint_annotation(self,point_type, to_vox = False, point=None, pointA=None, pointB=None, center=None, radii=None):
+        with self.viewer.txn(overwrite=True) as s:
+
+            pos = len(s.layers[point_type].annotations) + 1
+
+            if point != None:
+                point_array = array([int(point[x]/self.vx_sizes['em'][x]) for x in range(3)])
+                point_id = f'{point_type}_{pos}'
+
+                if len(point)==3: # then there is no segment ID associated with the annotation point
+                    pa = neuroglancer.PointAnnotation(id=point_id, point = point_array)
+                    
+                if len(point)==4: # then include the segment ID with the annotation point
+                    segment_id = point[3]
+                    pa = neuroglancer.PointAnnotation(id=point_id, point = point_array, segments = [[segment_id]])
+
+            if pointA != None:
+
+                if to_vox == True:
+                    pointA_array = array([int(pointA[x]/self.vx_sizes['em'][x]) for x in range(3)])
+                    pointB_array = array([int(pointB[x]/self.vx_sizes['em'][x]) for x in range(3)])
+                else: 
+                    pointA_array = pointA
+                    pointB_array = pointB
+                
+                point_id = f'{point_type}_{pos}'
+                pa = neuroglancer.AxisAlignedBoundingBoxAnnotation(id=point_id, pointA = pointA_array, pointB = pointB_array)
+
+            if center != None:
+
+                if to_vox == True:
+                    center_array = array([int(center[x]/self.vx_sizes['em'][x]) for x in range(3)])
+                    radii_array = array([int(radii[x]/self.vx_sizes['em'][x]) for x in range(3)])
+                else: 
+                    center_array = center
+                    radii_array = radii
+
+                point_id = f'{point_type}_{pos}'
+                pa = neuroglancer.EllipsoidAnnotation(id=point_id, center = center_array, radii = radii_array)
+            
+            s.layers[point_type].annotations.append(pa)
+
+        self.save_point_types_successfully()
+        self.load_annotation_layer_points()
 
     def save_point_types_successfully(self):
 
         for t in self.point_types:
 
             this_type_points = []
-     
-            for x in self.viewer.state.layers[t].annotations:
-                if t == 'Base Segment Merger' and x.segments == None:
-                    c = [int(y) for y in x.point]
-                    self.update_mtab(f'Error, no segment for point {c}, for point layer {t}, correct and re-save', 'Cell Reconstruction')
-                    return False
+            for x in self.viewer.state.layers[t].annotations: #s.layers[t].annotations: #
 
-                else:
-                    co_ords = [float(x) for x in list(x.point)]
-                    co_ords_and_id = [co_ords[x]*self.vx_sizes['em'][x] for x in range(3)]
+                    if x.type == 'point':
+                        co_ords = [float(x) for x in list(x.point)]
+                        co_ords_and_id = ([co_ords[x]*self.vx_sizes['em'][x] for x in range(3)])
 
-                    if x.segments != None:
-                        if len(x.segments[0]) > 0:
-                            co_ords_and_id.append(str(x.segments[0][0]))
+                        if x.segments != None:
+                            if len(x.segments[0]) > 0:
+                                co_ords_and_id[0].append(str(x.segments[0][0]))
 
-                    this_type_points.append(co_ords_and_id)
+                        this_type_points.append((co_ords_and_id,'annotatePoint'))
+
+                    if x.type == 'axis_aligned_bounding_box':
+                        pointA = [float(x) for x in list(x.pointA)]
+                        pointA = [pointA[x]*self.vx_sizes['em'][x] for x in range(3)]
+
+                        pointB = [float(x) for x in list(x.pointB)]
+                        pointB = [pointB[x]*self.vx_sizes['em'][x] for x in range(3)]
+
+                        this_type_points.append((pointA,pointB,'annotateBoundingBox'))
+
+                    if x.type == 'ellipsoid':
+                        center = [float(x) for x in list(x.center)]
+                        center = [center[x]*self.vx_sizes['em'][x] for x in range(3)]
+
+                        radii = [float(x) for x in list(x.radii)]
+                        radii = [radii[x]*self.vx_sizes['em'][x] for x in range(3)]
+
+                        this_type_points.append((center,radii,'annotateSphere'))
 
             if t == 'Base Segment Merger':
                 self.cell_data['base_seg_merge_points'] = this_type_points
             else:
-                self.cell_data['end_points'][t] = this_type_points
+                self.cell_data['end_points'][t] = this_type_points   
 
-        return True                            
+        return True      
+
+        # for t in self.point_types:
+
+        #     this_type_points = []
+     
+        #     for x in self.viewer.state.layers[t].annotations:
+        #         if t == 'Base Segment Merger' and x.segments == None:
+        #             c = [int(y) for y in x.point]
+        #             self.update_mtab(f'Error, no segment for point {c}, for point layer {t}, correct and re-save', 'Cell Reconstruction')
+        #             return False
+
+        #         else:
+        #             co_ords = [float(x) for x in list(x.point)]
+        #             co_ords_and_id = [co_ords[x]*self.vx_sizes['em'][x] for x in range(3)]
+
+        #             if x.segments != None:
+        #                 if len(x.segments[0]) > 0:
+        #                     co_ords_and_id.append(str(x.segments[0][0]))
+
+        #             this_type_points.append(co_ords_and_id)
+
+        #     if t == 'Base Segment Merger':
+        #         self.cell_data['base_seg_merge_points'] = this_type_points
+        #     else:
+        #         self.cell_data['end_points'][t] = this_type_points
+
+        # return True                            
+
 
     def set_seg_colours(self):
         chosen_col = '#d2b48c'
