@@ -400,7 +400,7 @@ class ecrest:
                         # if color != None:
                         #     s.layers[point_type].annotationColor = color
 
-        self.load_annotation_layer_points()
+        # self.load_annotation_layer_points()
 
     def del_endpoint_annotation_layers(self,layer_names):
         self.point_types = [p for p in self.point_types if p not in layer_names]
@@ -422,6 +422,17 @@ class ecrest:
                 if point_type in self.cell_data['end_points'].keys():
 
                     for pos, point in enumerate(self.cell_data['end_points'][point_type]):
+
+                        if point[-1] not in ['annotatePoint','annotateBoundingBox','annotateSphere']:
+                            '''
+                            This is the case for all json files saved previous to 25 Jan 2024.
+                            Before that date, cell_data['end_points'][point_type] list elements 
+                            had the list format [x,y,z,'segment id if linked'].
+                            After that date, cell_data['end_points'][point_type] list elements 
+                            have the tuple format ([x,y,z,'segment id if linked'],[extra coordinates if box or sphere annotation],"type of annotation")
+                            '''
+                            point = (point, 'annotatePoint') 
+                        
                         
                         if point[-1] == 'annotatePoint':
                             point = point[0]
@@ -431,14 +442,14 @@ class ecrest:
                                 point_array = array([int(point[x]/self.vx_sizes['em'][x]) for x in range(3)])
                                 point_id = f'{point_type}_{pos}'
                                 pa = neuroglancer.PointAnnotation(id=point_id, point = point_array)
-                                s.layers[point_type].annotations.append(pa)
+                                # s.layers[point_type].annotations.append(pa)
 
                             if len(point)==4: # then include the segment ID with the annotation point
                                 point_array = array([int(point[x]/self.vx_sizes['em'][x]) for x in range(3)])
                                 point_id = f'{point_type}_{pos}'
                                 segment_id = point[3]
                                 pa = neuroglancer.PointAnnotation(id=point_id, point = point_array, segments = [[segment_id]])
-                                s.layers[point_type].annotations.append(pa)         
+                                # s.layers[point_type].annotations.append(pa)         
                         
                         if point[-1] == 'annotateBoundingBox':
                             pointA = point[0]
@@ -448,7 +459,7 @@ class ecrest:
                             pointB_array = array([int(pointB[x]/self.vx_sizes['em'][x]) for x in range(3)])
                             point_id = f'{point_type}_{pos}'
                             pa = neuroglancer.AxisAlignedBoundingBoxAnnotation(id=point_id, pointA = pointA_array, pointB = pointB_array)
-                            s.layers[point_type].annotations.append(pa)
+                            # s.layers[point_type].annotations.append(pa)
                         
                         if point[-1] == 'annotateSphere':
                             center = point[0]
@@ -458,8 +469,10 @@ class ecrest:
                             radii_array = array([int(radii[x]/self.vx_sizes['em'][x]) for x in range(3)])
                             point_id = f'{point_type}_{pos}'
                             pa = neuroglancer.EllipsoidAnnotation(id=point_id, center = center_array, radii = radii_array)
-                            s.layers[point_type].annotations.append(pa)
+                        
+                        s.layers[point_type].annotations.append(pa)
 
+        self.save_point_types_successfully()
                 # self.point_types = list(set(self.point_types + list(self.cell_data['end_points'].keys())))
                 # self.point_types = [x for x in self.point_types if not ('base' in x.lower() and 'merge' in x.lower())]
         
@@ -527,10 +540,11 @@ class ecrest:
                 point_id = f'{point_type}_{pos}'
                 pa = neuroglancer.EllipsoidAnnotation(id=point_id, center = center_array, radii = radii_array)
             
+            # annotations_to_add.append(pa)
             s.layers[point_type].annotations.append(pa)
 
         self.save_point_types_successfully()
-        self.load_annotation_layer_points()
+        # self.load_annotation_layer_points()
 
     def save_point_types_successfully(self):
 
@@ -538,14 +552,19 @@ class ecrest:
 
             this_type_points = []
             for x in self.viewer.state.layers[t].annotations: #s.layers[t].annotations: #
+                if t == 'Base Segment Merger' and x.segments == None:
+                    c = [int(y) for y in x.point]
+                    self.update_mtab(f'Error, no segment for point {c}, for point layer {t}, correct and re-save', 'Cell Reconstruction')
+                    return False
 
+                else:
                     if x.type == 'point':
                         co_ords = [float(x) for x in list(x.point)]
                         co_ords_and_id = ([co_ords[x]*self.vx_sizes['em'][x] for x in range(3)])
 
                         if x.segments != None:
                             if len(x.segments[0]) > 0:
-                                co_ords_and_id[0].append(str(x.segments[0][0]))
+                                co_ords_and_id.append(str(x.segments[0][0]))
 
                         this_type_points.append((co_ords_and_id,'annotatePoint'))
 
@@ -1335,16 +1354,17 @@ class ecrest:
 
             annotation_list = []
 
-            for v in neuroglancer_layer['annotations']:
-                # print(v)
-                corrected_location = self.get_corrected_xyz(v['point'], 'seg')
+            print('function not currently working. need to make work with new way of saving and listing annotaions 25 jan 2024')
+            # for v in neuroglancer_layer['annotations']:
+            #     # print(v)
+            #     corrected_location = self.get_corrected_xyz(v['point'], 'seg')
 
-                if 'segments' not in v.keys():
-                    annotation_list.extend([corrected_location])
-                if 'segments' in v.keys():
-                    annotation_list.extend([corrected_location + v['segments'][0]])
+            #     if 'segments' not in v.keys():
+            #         annotation_list.extend([corrected_location])
+            #     if 'segments' in v.keys():
+            #         annotation_list.extend([corrected_location + v['segments'][0]])
 
-            self.cell_data['end_points'][c].extend(annotation_list)
+            # self.cell_data['end_points'][c].extend(annotation_list)
 
     def define_ctype(self,ctype, method):
         '''
