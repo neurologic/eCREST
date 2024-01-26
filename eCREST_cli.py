@@ -63,6 +63,10 @@ class ecrest:
             self.load_from_file(filepath)
         #####
         
+        if launch_viewer==False:
+            #if no viewer, still need to reformat end_points saved before 25 Jan 2024
+            self.load_annotation_layer_points(launch_viewer=launch_viewer)
+
         '''
         Set up neuroglancer viewer
         '''
@@ -412,11 +416,18 @@ class ecrest:
         for t in layer_names:
             _ = self.cell_data['end_points'].pop(t)
 
-    def load_annotation_layer_points(self):
 
-        with self.viewer.txn(overwrite=True) as s:
+    def load_annotation_layer_points(self, launch_viewer=True):
+
+        '''default written to assume launch_viewer==True since that is how it was used previous to 25 Jan 2024'''
+        if launch_viewer==False:
+            '''
+            used to reformat end_points saved before 25 Jan 2024
+            should be part of load_annotation_layer_points with a launch_viewer flag option,
+            but that will require putting that flag input into
+            '''
             for point_type in self.point_types:
-                s.layers[point_type].annotations = [] # first, clear any existing in viewer so that points can be deleted
+                this_type_annotations = [] # 
 
                 # If data already exists for this point type:
                 if point_type in self.cell_data['end_points'].keys():
@@ -427,52 +438,79 @@ class ecrest:
                             '''
                             This is the case for all json files saved previous to 25 Jan 2024.
                             Before that date, cell_data['end_points'][point_type] list elements 
-                            had the list format [x,y,z,'segment id if linked'].
+                            had the list format [x,y,z,'segment id if linked']. Annotations were only point type, so assume that
                             After that date, cell_data['end_points'][point_type] list elements 
                             have the tuple format ([x,y,z,'segment id if linked'],[extra coordinates if box or sphere annotation],"type of annotation")
                             '''
                             point = (point, 'annotatePoint') 
-                        
-                        
-                        if point[-1] == 'annotatePoint':
-                            point = point[0]
-                            
-                            if len(point)==3: # then there is no segment ID associated with the annotation point
 
-                                point_array = array([int(point[x]/self.vx_sizes['em'][x]) for x in range(3)])
+                        this_type_annotations.append(point)
+
+                    # rewrite end_points for point_type with new formatting
+                    self.cell_data['end_points'][point_type] =  this_type_annotations    
+
+                else: print(f'data does not already exist for this point type ({point_type}) but it is in self.point_types')
+
+        if launch_viewer==True:    
+            with self.viewer.txn(overwrite=True) as s:
+                for point_type in self.point_types:
+                    s.layers[point_type].annotations = [] # first, clear any existing in viewer so that points can be deleted
+
+                    # If data already exists for this point type:
+                    if point_type in self.cell_data['end_points'].keys():
+
+                        for pos, point in enumerate(self.cell_data['end_points'][point_type]):
+
+                            if point[-1] not in ['annotatePoint','annotateBoundingBox','annotateSphere']:
+                                '''
+                                This is the case for all json files saved previous to 25 Jan 2024.
+                                Before that date, cell_data['end_points'][point_type] list elements 
+                                had the list format [x,y,z,'segment id if linked'].
+                                After that date, cell_data['end_points'][point_type] list elements 
+                                have the tuple format ([x,y,z,'segment id if linked'],[extra coordinates if box or sphere annotation],"type of annotation")
+                                '''
+                                point = (point, 'annotatePoint') 
+                            
+                            
+                            if point[-1] == 'annotatePoint':
+                                point = point[0]
+                                
+                                if len(point)==3: # then there is no segment ID associated with the annotation point
+
+                                    point_array = array([int(point[x]/self.vx_sizes['em'][x]) for x in range(3)])
+                                    point_id = f'{point_type}_{pos}'
+                                    pa = neuroglancer.PointAnnotation(id=point_id, point = point_array)
+                                    # s.layers[point_type].annotations.append(pa)
+
+                                if len(point)==4: # then include the segment ID with the annotation point
+                                    point_array = array([int(point[x]/self.vx_sizes['em'][x]) for x in range(3)])
+                                    point_id = f'{point_type}_{pos}'
+                                    segment_id = point[3]
+                                    pa = neuroglancer.PointAnnotation(id=point_id, point = point_array, segments = [[segment_id]])
+                                    # s.layers[point_type].annotations.append(pa)         
+                            
+                            if point[-1] == 'annotateBoundingBox':
+                                pointA = point[0]
+                                pointB = point[1]
+                                
+                                pointA_array = array([int(pointA[x]/self.vx_sizes['em'][x]) for x in range(3)])
+                                pointB_array = array([int(pointB[x]/self.vx_sizes['em'][x]) for x in range(3)])
                                 point_id = f'{point_type}_{pos}'
-                                pa = neuroglancer.PointAnnotation(id=point_id, point = point_array)
+                                pa = neuroglancer.AxisAlignedBoundingBoxAnnotation(id=point_id, pointA = pointA_array, pointB = pointB_array)
                                 # s.layers[point_type].annotations.append(pa)
-
-                            if len(point)==4: # then include the segment ID with the annotation point
-                                point_array = array([int(point[x]/self.vx_sizes['em'][x]) for x in range(3)])
+                            
+                            if point[-1] == 'annotateSphere':
+                                center = point[0]
+                                radii = point[1]
+                                
+                                center_array = array([int(center[x]/self.vx_sizes['em'][x]) for x in range(3)])
+                                radii_array = array([int(radii[x]/self.vx_sizes['em'][x]) for x in range(3)])
                                 point_id = f'{point_type}_{pos}'
-                                segment_id = point[3]
-                                pa = neuroglancer.PointAnnotation(id=point_id, point = point_array, segments = [[segment_id]])
-                                # s.layers[point_type].annotations.append(pa)         
-                        
-                        if point[-1] == 'annotateBoundingBox':
-                            pointA = point[0]
-                            pointB = point[1]
+                                pa = neuroglancer.EllipsoidAnnotation(id=point_id, center = center_array, radii = radii_array)
                             
-                            pointA_array = array([int(pointA[x]/self.vx_sizes['em'][x]) for x in range(3)])
-                            pointB_array = array([int(pointB[x]/self.vx_sizes['em'][x]) for x in range(3)])
-                            point_id = f'{point_type}_{pos}'
-                            pa = neuroglancer.AxisAlignedBoundingBoxAnnotation(id=point_id, pointA = pointA_array, pointB = pointB_array)
-                            # s.layers[point_type].annotations.append(pa)
-                        
-                        if point[-1] == 'annotateSphere':
-                            center = point[0]
-                            radii = point[1]
-                            
-                            center_array = array([int(center[x]/self.vx_sizes['em'][x]) for x in range(3)])
-                            radii_array = array([int(radii[x]/self.vx_sizes['em'][x]) for x in range(3)])
-                            point_id = f'{point_type}_{pos}'
-                            pa = neuroglancer.EllipsoidAnnotation(id=point_id, center = center_array, radii = radii_array)
-                        
-                        s.layers[point_type].annotations.append(pa)
+                            s.layers[point_type].annotations.append(pa)
 
-        self.save_point_types_successfully()
+            self.save_point_types_successfully()
                 # self.point_types = list(set(self.point_types + list(self.cell_data['end_points'].keys())))
                 # self.point_types = [x for x in self.point_types if not ('base' in x.lower() and 'merge' in x.lower())]
         
