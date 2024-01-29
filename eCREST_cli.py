@@ -283,7 +283,7 @@ class ecrest:
             s.layers['Base Segment Merger'].tool = "annotatePoint"
 
             for pos, point in enumerate(self.cell_data['base_seg_merge_points']):
-
+                point = point[0]
                 point_array = array([int(point[x]/self.vx_sizes['em'][x]) for x in range(3)])
                 pa = neuroglancer.PointAnnotation(id=f'bm_{pos}', point = point_array, segments=[[point[3]]])
                 s.layers['Base Segment Merger'].annotations.append(pa)                
