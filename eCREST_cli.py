@@ -283,6 +283,17 @@ class ecrest:
             s.layers['Base Segment Merger'].tool = "annotatePoint"
 
             for pos, point in enumerate(self.cell_data['base_seg_merge_points']):
+
+                if point[-1] not in ['annotatePoint','annotateBoundingBox','annotateSphere']:
+                    '''
+                    This is the case for all json files saved previous to 25 Jan 2024.
+                    Before that date, cell_data['end_points'][point_type] list elements 
+                    had the list format [x,y,z,'segment id if linked']. Annotations were only point type, so assume that
+                    After that date, cell_data['end_points'][point_type] list elements 
+                    have the tuple format ([x,y,z,'segment id if linked'],[extra coordinates if box or sphere annotation],"type of annotation")
+                    '''
+                    point = (point, 'annotatePoint') 
+                            
                 point = point[0]
                 point_array = array([int(point[x]/self.vx_sizes['em'][x]) for x in range(3)])
                 pa = neuroglancer.PointAnnotation(id=f'bm_{pos}', point = point_array, segments=[[point[3]]])
