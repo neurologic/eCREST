@@ -437,7 +437,11 @@ class ecrest:
             should be part of load_annotation_layer_points with a launch_viewer flag option,
             but that will require putting that flag input into
             '''
-            for point_type in self.point_types:
+            # print('no viewer, setting annotation formatting in cell_data')
+            for point_type in self.cell_data['end_points'].keys(): #self.point_types:
+                '''somehow, new annotation layers are not ending up in point types?
+                need to fix so that can go back to iterating through point_types'''
+
                 this_type_annotations = [] # 
 
                 # If data already exists for this point type:
