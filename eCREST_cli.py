@@ -1381,7 +1381,7 @@ class ecrest:
             s.layers['agglo'].selectedAlpha = two_d_intensity
             s.layers['agglo'].objectAlpha = 1.00
             
-            all_segs = [a for b in self.cell_data['base_segments'].values() for a in b]
+            all_segs = [int(a) for b in self.cell_data['base_segments'].values() for a in b]
 
             s.layers['base_segs'] = neuroglancer.SegmentationLayer(source = self.base_seg, segments=all_segs, segment_colors={})
             s.layers['base_segs'].ignoreNullVisibleSet = False
