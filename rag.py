@@ -12,7 +12,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Utilities for region adjacency graphs (RAGs)."""
+"""Utilities for region adjacency graphs (RAGs).
+from https://github.com/google-research/connectomics/blob/main/connectomics/segmentation/rag.py
+"""
+
 
 import networkx as nx
 import numpy as np
