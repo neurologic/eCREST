@@ -65,7 +65,7 @@ class ecrest:
         
         if launch_viewer==False:
             #if no viewer, still need to reformat end_points saved before 25 Jan 2024
-            self.load_annotation_layer_points(launch_viewer=launch_viewer)
+            self.load_annotation_layer_points()
 
         '''
         Set up neuroglancer viewer
@@ -428,10 +428,10 @@ class ecrest:
             _ = self.cell_data['end_points'].pop(t)
 
 
-    def load_annotation_layer_points(self, launch_viewer=True):
+    def load_annotation_layer_points(self):
 
         '''default written to assume launch_viewer==True since that is how it was used previous to 25 Jan 2024'''
-        if launch_viewer==False:
+        if self.launch_viewer==False:
             '''
             used to reformat end_points saved before 25 Jan 2024
             should be part of load_annotation_layer_points with a launch_viewer flag option,
@@ -466,7 +466,7 @@ class ecrest:
 
                 else: print(f'data does not already exist for this point type ({point_type}) but it is in self.point_types')
 
-        if launch_viewer==True:    
+        if self.launch_viewer==True:    
             with self.viewer.txn(overwrite=True) as s:
                 for point_type in self.point_types:
                     s.layers[point_type].annotations = [] # first, clear any existing in viewer so that points can be deleted
