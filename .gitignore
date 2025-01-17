@@ -1,0 +1,9 @@
+Notebooks_archive/
+CREST_archive/
+eCREST_archive/
+other/
+under-construction/
+__pycache__/
+.virtual_documents
+.ipynb_checkpoints
+.DS_Store

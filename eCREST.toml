@@ -1,0 +1,7 @@
+[build-system]
+requires = [
+  "neuroglancer",
+  "igraph",
+  "cloudvolume",
+  "igneous",
+]
