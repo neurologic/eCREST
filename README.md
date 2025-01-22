@@ -8,7 +8,9 @@ eCREST was forked from [CREST](https://github.com/ashapsoncoe/CREST) and modifie
 This repo additionally includes custom notebooks and scripts that are created for the electric fish ELL connectome project (for analysis and for converting/communicating between neuroglancer and CREST json states).
 
 
-# PC (windows)
+# PC (windows)  
+
+(getting things running on a Mac will be very similar except, after downloading and installing the Anaconda Navigator .exe for mac, you would do all of the command prompts through the native Mac Terminal app rather than through Anaconda PowerShell Prompt -- though both should work, it is easier to use Terminal)
 
 ## Installing eCREST
 
@@ -29,14 +31,16 @@ Make sure that Anaconda is installed. If not already installed, you can get the 
 	> the beginning of the Powershell Prompt command line should now start with ```(ell)``` instead of ```(base)```
 6. Run the following command lines in order: 
 	- ```conda install -c anaconda git```
-	- ```pip install neuroglancer```
-	- ```conda install scipy```
-	- ```conda install matplotlib```
-	- ```conda install -c conda-forge cairocffi```
-	- ```conda install -c conda-forge pycairo```
-	- ```conda install -c conda-forge google-cloud-storage```
-	- ```conda install -c conda-forge python-igraph```
-	- ```conda install -c anaconda pandas```
+	- ```pip install neuroglancer igraph``` 
+		> NOTE: if you want even more functionality and access to analysis notebooks, include cloud-volume and igneous: ```pip install neuroglancer igraph cloud-volume igneous ```
+	- ```conda install scipy matplotlib seaborn```
+	- ```conda install -c conda-forge cairocffi pycairo google-cloud-storage```
+
+	
+	conda install -c anaconda git
+pip install neuroglancer igraph
+conda install scipy matplotlib pandas seaborn
+conda install -c conda-forge cairocffi pycairo google-cloud-storage tqdm
 
 ### Clone this repository to your computer
 
@@ -45,9 +49,19 @@ Make sure that Anaconda is installed. If not already installed, you can get the 
 
 #### Keeping things up-to-date
 
-In the future, you can run ```git pull``` from within the eCREST directory to make sure you have the latest version of scripts from the repo. 
+In the future, you can run ```git pull``` from within the eCREST directory to make sure you have the latest version of scripts from the repo. However, you will first need to stash with ```git stash``` (and delete stash if want: ```git stash clear```)
 
-## Running eCREST
+## Running jupyter lab notebooks 
+
+1. Launch **Anaconda Navigator**
+2. Activate the **ell** environment from the Navigator main window by selecting it from the dropdown menu of environments.  
+3. Launch **Powershell Prompt** from the main Navigator GUI. 
+4. "**Change Directory**" to the cloned eCREST repository (from step 7 of the install... the path now includes eCREST directory itself).
+5. run the command ```jupyter lab```
+
+
+## Running eCREST from the command line 
+(we don't currently use this method, but it was the main use case implemented with CREST)
 
 ### Basic Steps to Launch
 
@@ -62,7 +76,7 @@ In the future, you can run ```git pull``` from within the eCREST directory to ma
 ### Possible Errors and Solutions
 
 <details><summary>ImportError: cannot import name 'COMMON_SAFE_ASCII_CHARACTERS' from 'charset_normalizer.constant'</summary>
-	For exmple, this error might happen when you try to launch eCREST.py or load a cell from file once it is running.  
+	For example, this error might happen when you try to launch eCREST.py or load a cell from file once it is running.  
 	**Solution** to try:
 	```conda install -c anaconda chardet```
 </details>
